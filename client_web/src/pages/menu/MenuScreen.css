@@ -1,0 +1,11 @@
+.menu-shell {
+  min-height: 100vh;
+  padding: 32px;
+  background: #f6f7f4;
+}
+
+.menu-header {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 0;
+}
