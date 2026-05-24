@@ -1,0 +1,154 @@
+.documents-shell {
+  min-height: 100vh;
+  padding: 32px;
+  background: #f6f7f4;
+}
+
+.documents-layout {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.documents-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.documents-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  color: #26323a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.documents-back-link:hover {
+  border-color: #2f6f55;
+  color: #2f6f55;
+}
+
+.documents-search {
+  display: grid;
+  align-items: end;
+  gap: 16px;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.documents-field {
+  display: grid;
+  gap: 8px;
+  color: #26323a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.documents-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172026;
+}
+
+.documents-field input:focus {
+  border-color: #2f6f55;
+  outline: 3px solid rgba(47, 111, 85, 0.18);
+}
+
+.documents-search-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 6px;
+  background: #2f6f55;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.documents-search-button:hover {
+  background: #285d49;
+}
+
+.documents-status {
+  margin: 0;
+  padding: 20px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #536068;
+  font-weight: 700;
+}
+
+.documents-status-error {
+  color: #a33b2f;
+}
+
+.documents-list {
+  display: grid;
+  gap: 12px;
+}
+
+.document-link {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172026;
+  text-decoration: none;
+}
+
+.document-link:hover {
+  border-color: #2f6f55;
+}
+
+.document-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.document-meta {
+  color: #536068;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 720px) {
+  .documents-shell {
+    padding: 16px;
+  }
+
+  .documents-layout {
+    padding: 18px 0 32px;
+  }
+
+  .documents-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .documents-back-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .documents-search {
+    grid-template-columns: 1fr;
+  }
+}

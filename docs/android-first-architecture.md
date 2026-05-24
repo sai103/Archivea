@@ -1,41 +1,101 @@
-# Androidスマホ向け + API の初期アーキテクチャ
+# Chrome先行 + 将来モバイル構成
+
+このファイルは旧Android先行方針のドキュメント名を引き継いでいます。現在の方針は、まずChromeブラウザで動作するWebフロントエンドを作り、将来のiOS/Androidアプリ展開でFlutterを利用することです。
 
 ## 目的
-- まずは Android スマホ向けに PDF/JPG/ZIP内JPG を閲覧できるブックリーダーを提供。
-- その後 iOS を追加しやすいように、モバイルは Flutter で構築する。
+
+- まずはChromeブラウザ向けにPDF/JPG/PNG/WebP/EPUB/ZIP内画像を閲覧できるブックリーダーを提供する。
+- WebフロントエンドはReact + TypeScript + Viteを第一候補とする。
+- iOS/Androidアプリは将来フェーズとしてFlutterで構築する。
+- 実行環境はDockerで整備し、初期セットアップを簡単にする。
 
 ## 構成
-- `client_flutter/`: Flutter クライアント（Android先行、同コードでiOS展開可能）
-- `backend/`: FastAPI で作るドキュメント管理API
+
+- `client_web/`: Chromeブラウザ向けWebフロントエンド（今後追加予定）
+- `client_flutter/`: Flutterクライアント（将来のiOS/Androidアプリ）
+- `backend/`: FastAPIで作るドキュメント管理API
+- DB: MVPではSQLite、最終的にはMySQL
+
+## フロントエンド技術バージョン
+
+Chrome Webフロントエンドでは、React、TypeScript、Viteの最新安定版を利用する。
+
+- React: `19.2.6`
+- TypeScript: `6.0.3`
+- Vite: `8.0.13`
+- Vite Reactプラグイン: `@vitejs/plugin-react` `6.0.2`
 
 ## 最低限の機能（MVP）
-1. 管理者が PDF/JPG/ZIP(JPG集) を API にアップロード
-2. モバイルアプリで一覧取得
-3. タップで本文表示（PDFビューア / 画像ビューア / ZIPページビューア）
+
+1. ユーザーがログインする
+2. バックエンドがユーザーのロール、閲覧可能ジャンル、年齢制限を判定する
+3. 管理者がPDF/JPG/PNG/WebP/EPUB/ZIP(画像集)をAPIにアップロードし、ジャンルと閲覧制限を設定する
+4. 一般ユーザーが閲覧可能なジャンルを選ぶ
+5. Chromeフロントエンドで権限に応じた一覧を取得
+6. タップまたはクリックで本文表示（PDFビューア / 画像ビューア / EPUBビューア / ZIPページビューア）
+7. 設定画面で表示や接続に関する設定を変更
+8. DockerでバックエンドとWebフロントエンドを起動
+
+## 画面構成
+
+- ログイン画面: 認証情報を入力し、利用者を識別する。
+- ジャンル選択画面: 閲覧対象のジャンルを選択する。選択結果は一覧取得や表示対象の絞り込みに使う。
+- 管理画面: 管理者がファイル登録、ジャンル設定、年齢制限設定を行う。
+- 設定画面: API接続先、表示モード、閲覧設定などを変更する。
+- 画像表示画面: PDF、JPG/PNG/WebP、EPUB、ZIP内画像ページを表示する。
 
 ## API方針
-- `POST /documents` でPDF/JPG/ZIP登録
-- `GET /documents` で一覧取得
-- `GET /documents/{id}/content` でPDF/JPG配信
-- `GET /documents/{id}/pages` + `.../pages/{page_index}/content` でZIP内JPG配信
+
+- `POST /documents` でPDF/JPG/PNG/WebP/EPUB/ZIP登録。管理者権限を必須にする。
+- `GET /documents` で一覧取得。ログイン中ユーザーが閲覧できるジャンルと年齢制限で絞り込む。
+- `GET /documents/{id}/content` でPDF/JPG/PNG/WebP/EPUB配信。本文配信時にも閲覧権限を確認する。
+- `GET /documents/{id}/pages` + `.../pages/{page_index}/content` でZIP内画像配信。ページ一覧とページ本文の両方で閲覧権限を確認する。
+- ユーザー、ロール、ジャンル、閲覧制限を管理するAPIは、認証方式の確定後に追加する。
+
+## 権限設計
+
+- 管理者ロールはファイル登録、メタデータ編集、ジャンル登録、閲覧制限設定を行える。
+- 一般ユーザーは許可されたジャンルだけを一覧、検索、閲覧できる。
+- ジャンルには年齢制限または閲覧レベルを設定する。
+- ユーザーには閲覧可能な年齢制限または閲覧レベルを設定する。
+- フロントエンドのメニュー表示だけで制限せず、バックエンドAPIで必ず権限判定を行う。
+- 将来のFlutterクライアントもChrome Webと同じ権限APIを利用する。
+
+## DB方針
+
+- MVPではSQLiteを利用する。
+- 最終的にはMySQLを利用する。
+- 設定画面で扱う設定値はDBに保存する。
+- 画像ファイル、PDF、EPUB、ZIPから展開した画像ページの実体はファイルシステムに保存する。
+- ファイルの保存場所、MIME type、拡張子、ジャンル、表示順などのメタデータはDBに保存する。
+- ユーザー、ロール、ジャンル、閲覧制限、ユーザーごとの閲覧可能範囲をDBに保存する。
+- SQLiteからMySQLへ移行しやすいように、DB固有の機能へ強く依存しない。
 
 ## ZIPページ順序
-- ZIP内の `.jpg` / `.jpeg` を抽出対象とする
+
+- ZIP内の `.jpg` / `.jpeg` / `.png` / `.webp` を抽出対象とする
 - 表示順はファイル名昇順（例: `001.jpg`, `002.jpg`, `010.jpg`）
 
 ## 画面サイズ対応
-- ZIPビューアは画面幅が900px以上で2ページ表示に対応
-- 1ページ/2ページ表示はアプリ画面上のボタンで切替可能
-- 幅が狭い場合は自動的に1ページ表示にフォールバック
 
-## Flutter採用理由
-- Android/iOS の単一コードベース運用がしやすい
-- PDF表示ライブラリが実用レベル
-- 先に Android APK でリリースし、iOS は同一コードで順次展開できる
+- ZIPビューアは画面幅が900px以上で2ページ表示に対応する
+- 1ページ/2ページ表示は画面上のボタンで切替可能にする
+- 幅が狭い場合は自動的に1ページ表示にフォールバックする
+
+## Flutterの位置づけ
+
+- Flutterは将来のiOS/Androidアプリ向けに維持する
+- Chromeブラウザ向けの主フロントエンドにはしない
+- APIモデルと閲覧体験はChromeフロントエンドとできるだけ揃える
 
 ## 次フェーズ候補
+
+- `client_web/` のVite React TypeScriptスキャフォールド
+- Docker Composeによる起動ハーネス
+- サンプルPDF/JPG/PNG/WebP/EPUB/ZIPフィクスチャ
+- PlaywrightによるChromeスモークテスト
 - ユーザー認証（JWT + Refresh Token）
+- 管理者ロールとジャンル別閲覧権限
 - フォルダやタグ管理
 - オフラインキャッシュ
 - ページ位置の同期
-- タブレット向け2カラムUI

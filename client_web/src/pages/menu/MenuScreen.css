@@ -4,8 +4,56 @@
   background: #f6f7f4;
 }
 
-.menu-header {
+.menu-layout {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 24px 0 48px;
+}
+
+.menu-header {
+  margin-bottom: 28px;
+}
+
+.menu-nav {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.menu-item {
+  display: grid;
+  gap: 8px;
+  min-height: 120px;
+  padding: 22px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172026;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(23, 32, 38, 0.06);
+}
+
+.menu-item:hover {
+  border-color: #2f6f55;
+}
+
+.menu-item-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.menu-item-text {
+  color: #536068;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+  .menu-shell {
+    padding: 16px;
+  }
+
+  .menu-layout {
+    padding: 18px 0 32px;
+  }
 }
