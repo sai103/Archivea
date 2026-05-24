@@ -1,0 +1,150 @@
+.settings-shell {
+  min-height: 100vh;
+  padding: 32px;
+  background: #f6f7f4;
+}
+
+.settings-layout {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  color: #26323a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.secondary-link:hover {
+  border-color: #2f6f55;
+  color: #2f6f55;
+}
+
+.settings-form {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #d9dfd8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.settings-section legend {
+  padding: 0 8px;
+  color: #26323a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.settings-field {
+  display: grid;
+  gap: 8px;
+  color: #26323a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.settings-field input,
+.settings-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172026;
+}
+
+.settings-field input:focus,
+.settings-field select:focus {
+  border-color: #2f6f55;
+  outline: 3px solid rgba(47, 111, 85, 0.18);
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #26323a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.settings-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #2f6f55;
+}
+
+.settings-message {
+  margin: 0;
+  color: #2f6f55;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-actions .primary-button {
+  min-height: 44px;
+  min-width: 120px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 6px;
+  background: #2f6f55;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-actions .primary-button:hover {
+  background: #285d49;
+}
+
+@media (max-width: 640px) {
+  .settings-shell {
+    padding: 16px;
+  }
+
+  .settings-layout {
+    padding: 18px 0 32px;
+  }
+
+  .settings-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .secondary-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .settings-section {
+    padding: 20px;
+  }
+}
