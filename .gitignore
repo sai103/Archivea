@@ -4,3 +4,14 @@ __pycache__/
 node_modules/
 dist/
 *.tsbuildinfo
+*.log
+*.out.log
+*.err.log
+*.db
+*.db-*
+*.db.*
+uploads/
+backend/uploads/
+backend/library.db
+.agents/
+skills-lock.json

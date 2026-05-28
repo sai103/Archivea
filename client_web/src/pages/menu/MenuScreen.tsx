@@ -18,7 +18,7 @@ export function MenuScreen() {
 
           <Link to="/settings" className="menu-item">
             <span className="menu-item-title">設定</span>
-            <span className="menu-item-text">API接続先、表示モード、閲覧設定</span>
+            <span className="menu-item-text">API接続先</span>
           </Link>
         </nav>
       </section>

@@ -6,11 +6,19 @@ Archiveaの最初の提供対象となるChromeブラウザ向けWebフロント
 
 ```bash
 cd client_web
-npm install
+npm ci
 npm run dev
 ```
 
 Vite開発サーバーは`5173`番ポートで起動します。ブラウザからバックエンドAPIを利用する場合は、別途`backend/`のAPIを起動します。
+
+依存ライブラリは`package.json`と`package-lock.json`で管理します。PDFをページ単位で描画するための`pdfjs-dist`もここに記録されているため、別環境では`npm ci`で同じ依存を導入できます。
+
+リポジトリルートからバックエンドとWebフロントエンドをまとめて起動する場合は、PowerShellで次を実行します。
+
+```powershell
+.\scripts\dev.ps1
+```
 
 ## 実行コマンド
 
