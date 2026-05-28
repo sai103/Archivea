@@ -154,6 +154,13 @@ class DocumentViewerScreen extends StatelessWidget {
       return ZipImageViewerScreen(apiBaseUrl: apiBaseUrl, document: document);
     }
 
+    if (document.mimeType == 'application/epub+zip') {
+      return Scaffold(
+        appBar: AppBar(title: Text(document.title)),
+        body: const Center(child: Text('EPUBビューアは未実装です')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(document.title)),
       body: InteractiveViewer(
@@ -239,7 +246,7 @@ class _ZipImageViewerScreenState extends State<ZipImageViewerScreen> {
 
           final pages = snapshot.data ?? const [];
           if (pages.isEmpty) {
-            return const Center(child: Text('ZIPにJPGページがありません'));
+            return const Center(child: Text('ZIPに画像ページがありません'));
           }
 
           final pagesPerScreen = _isTwoPageMode ? 2 : 1;

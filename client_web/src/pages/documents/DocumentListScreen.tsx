@@ -1,17 +1,17 @@
 import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { fetchDocuments, type DocumentItem } from '../../api/documents';
+import { fetchDocuments, fetchGenres, type DocumentItem, type GenreItem } from '../../api/documents';
 import './DocumentListScreen.css';
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'success'; documents: DocumentItem[] }
+  | { status: 'success'; documents: DocumentItem[]; genres: GenreItem[] }
   | { status: 'error'; message: string };
 
 export function DocumentListScreen() {
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
-  const [genreInput, setGenreInput] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [genreQuery, setGenreQuery] = useState('');
   const [nameQuery, setNameQuery] = useState('');
@@ -19,10 +19,10 @@ export function DocumentListScreen() {
   useEffect(() => {
     let isActive = true;
 
-    fetchDocuments()
-      .then((documents) => {
+    Promise.all([fetchDocuments(), fetchGenres()])
+      .then(([documents, genres]) => {
         if (isActive) {
-          setLoadState({ status: 'success', documents });
+          setLoadState({ status: 'success', documents, genres });
         }
       })
       .catch((error: unknown) => {
@@ -42,13 +42,11 @@ export function DocumentListScreen() {
       return [];
     }
 
-    const normalizedGenre = genreQuery.trim().toLowerCase();
     const normalizedName = nameQuery.trim().toLowerCase();
 
     return loadState.documents.filter((document) => {
       const genre = document.genre ?? '';
-      const matchesGenre =
-        normalizedGenre.length === 0 || genre.toLowerCase().includes(normalizedGenre);
+      const matchesGenre = genreQuery.length === 0 || genre === genreQuery;
       const matchesName =
         normalizedName.length === 0 || document.title.toLowerCase().includes(normalizedName);
 
@@ -58,7 +56,7 @@ export function DocumentListScreen() {
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setGenreQuery(genreInput);
+    setGenreQuery(selectedGenre);
     setNameQuery(nameInput);
   };
 
@@ -78,12 +76,19 @@ export function DocumentListScreen() {
         <form className="documents-search" onSubmit={handleSearch}>
           <label className="documents-field">
             <span>ジャンル</span>
-            <input
-              type="search"
-              value={genreInput}
-              onChange={(event) => setGenreInput(event.target.value)}
-              placeholder="ジャンルで検索"
-            />
+            <select
+              value={selectedGenre}
+              onChange={(event) => setSelectedGenre(event.target.value)}
+              disabled={loadState.status !== 'success'}
+            >
+              <option value="">すべて</option>
+              {loadState.status === 'success' &&
+                loadState.genres.map((genre) => (
+                  <option key={genre.id} value={genre.name}>
+                    {genre.name}
+                  </option>
+                ))}
+            </select>
           </label>
 
           <label className="documents-field">
@@ -125,7 +130,9 @@ export function DocumentListScreen() {
                 <span className="document-meta">
                   {document.genre ? `${document.genre} / ` : ''}
                   {document.mimeType}
+                  {document.pageCount ? ` / ${document.pageCount}ページ` : ''}
                 </span>
+                {document.isSample && <span className="document-badge">仮データ</span>}
               </Link>
             ))}
           </nav>

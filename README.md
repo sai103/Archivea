@@ -23,6 +23,24 @@ Chromeブラウザでの動作を最初の目標とするブックリーダー�
 - Flutterは将来のiOS/Androidアプリ利用を前提に扱う
 - インストールと起動を容易にするため、Dockerでの実行環境を整備する
 
+## ローカル開発起動
+
+Docker整備前の現時点では、PowerShellで次を実行するとバックエンドとWebフロントエンドをまとめて起動できます。
+
+```powershell
+.\scripts\dev.ps1
+```
+
+このスクリプトは次を実行します。
+
+- `backend/.venv` が無い場合は作成する
+- `backend/requirements.txt` からPython依存をインストールする
+- `client_web/package-lock.json` に従って `npm ci` を実行する
+- FastAPIを `http://127.0.0.1:8000` で起動する
+- Viteを `http://localhost:5173` で起動する
+
+フロントエンドの依存ライブラリ（`pdfjs-dist`など）は、`client_web/package.json` と `client_web/package-lock.json` に記録されています。別環境では `npm ci` により同じ依存を再現します。バックエンド依存は `backend/requirements.txt` に記録されています。
+
 ## フロントエンド想定バージョン
 - React: `19.2.6`
 - TypeScript: `6.0.3`

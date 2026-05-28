@@ -14,10 +14,19 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 起動後は`GET /health`でAPIの起動状態を確認できます。
 
+依存ライブラリは`requirements.txt`で管理します。別環境ではこのファイルを使って同じ依存を導入します。
+
+リポジトリルートからバックエンドとWebフロントエンドをまとめて起動する場合は、PowerShellで次を実行します。
+
+```powershell
+.\scripts\dev.ps1
+```
+
 ## エンドポイント
 - `GET /health`
 - `POST /documents?title=...` (multipart, `application/pdf` / `image/jpeg` / `image/png` / `image/webp` / `application/epub+zip` / `application/zip`)
 - `GET /documents`
+- `GET /genres`
 - `GET /documents/{id}/content` (PDF/JPG/PNG/WebP/EPUB)
 - `GET /documents/{id}/pages` (ZIP内画像のページ一覧)
 - `GET /documents/{id}/pages/{page_index}/content` (ZIPページ本文)
@@ -36,6 +45,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - ファイル登録は管理者ユーザーに限定し、一覧取得と本文配信はログイン中ユーザーの閲覧権限で制限
 
 現行のローカル実装では、SQLite DBを`backend/library.db`に作成し、アップロードされた本文やZIP展開ページを`backend/uploads/`へ保存します。これらは生成データとして扱います。
+
+ローカル確認用に`H:\test\pdf_test.pdf`が存在する場合、API起動時に`pdf_test`としてDBへ登録し、`GET /documents/{id}/content`から配信します。
 
 ## 権限方針
 

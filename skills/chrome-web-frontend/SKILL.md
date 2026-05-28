@@ -23,6 +23,12 @@ TypeScriptとReactの実装では、`docs/typescript-react-coding-rules.md` に�
 
 React、TypeScript、Viteは最新の安定版を利用します。作業時点でnpm registryのlatestが変わっている場合は、ドキュメントと`client_web/package.json`を同時に更新します。
 
+## 外部ライブラリとライセンス
+
+外部ライブラリやフレームワークを追加・更新する場合は、`docs/dependency-license-policy.md` に従います。実装前または同じ変更内でライセンスを確認します。採用したライブラリのライセンスが表記や同梱を要求する場合は、`client_web/THIRD_PARTY_NOTICES.md`や`client_web/licenses/`など、配布物から追跡できる場所に必要な記述を追加します。
+
+MIT LicenseまたはApache License 2.0以外のライセンスを含むライブラリやフレームワークを使う場合は、追加前にユーザーへ確認します。依存先にさらに別ライセンスのパッケージが含まれる場合も同様に確認し、採用可否と必要な表記を明確にしてから実装します。
+
 ## 作成手順
 
 `client_web/`が存在しない場合は、ViteのReact TypeScriptアプリとしてスキャフォールドします。フロントエンドは`backend/`から分離し、WebソースをFastAPIプロジェクト内に混在させません。

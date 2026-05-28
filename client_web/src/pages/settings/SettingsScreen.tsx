@@ -33,33 +33,6 @@ export function SettingsScreen() {
             </label>
           </fieldset>
 
-          <fieldset className="settings-section">
-            <legend>表示</legend>
-            <label className="settings-field">
-              <span>表示モード</span>
-              <select defaultValue="single">
-                <option value="single">1ページ</option>
-                <option value="spread">2ページ</option>
-              </select>
-            </label>
-
-            <label className="settings-checkbox">
-              <input type="checkbox" defaultChecked />
-              <span>画像を画面幅に合わせる</span>
-            </label>
-          </fieldset>
-
-          <fieldset className="settings-section">
-            <legend>閲覧</legend>
-            <label className="settings-field">
-              <span>ページ送り</span>
-              <select defaultValue="left-to-right">
-                <option value="left-to-right">左から右</option>
-                <option value="right-to-left">右から左</option>
-              </select>
-            </label>
-          </fieldset>
-
           {saveMessage && (
             <p className="settings-message" role="status">
               {saveMessage}

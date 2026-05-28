@@ -47,6 +47,7 @@ Archivea は、PDF、JPG、PNG、WebP、EPUB、画像ページを含むZIPアー
 - 振る舞いを変更した場所の近くにテストを追加する。
 - ハーネス整備後は、Dockerを標準のセットアップ経路にする。
 - Chromeが主対象の間もFlutterアプリは削除しない。プロジェクト方針が変わらない限り、Flutterはモバイル向け経路として維持する。
+- 外部ライブラリやフレームワークを追加・更新する場合は、`docs/dependency-license-policy.md` に従う。
 
 ## Chrome Web作業
 
@@ -56,6 +57,12 @@ React、TypeScript、Viteは最新の安定版を利用します。現時点の�
 TypeScriptとReactの実装では、`docs/typescript-react-coding-rules.md` を規約として扱います。Reactの純粋性、Hookの呼び出し規則、props/stateの不変性を崩さず、TypeScriptの命名、型設計、`null`/`undefined`、書式規約を新規コードと変更コードで守ります。
 
 Chrome Webの画面ソースは`client_web/src/pages/<画面名>/`に画面単位で配置します。画面固有のコンポーネント、Hook、スタイルは対応するページフォルダの近くに置きます。
+
+ブックリーダー挙動は必須要件です。PDFをChrome内蔵PDFビューアやiframeに丸投げせず、PDF、単体画像、ZIP内画像など形式に関係なくアプリ側でページ単位に制御します。1ページ表示では1ページだけを表示して1ページ単位で送り、2ページ表示では2ページを同時に表示して2ページ単位で送ります。縦スクロールで次ページへ移動させる表示は避けます。
+
+## バックエンド作業
+
+FastAPIバックエンドを扱う場合は、`skills/backend-fastapi/SKILL.md` に従います。外部ライブラリやフレームワークを追加・更新する場合はライセンスを確認し、必要な表記を追加します。MIT LicenseまたはApache License 2.0以外のライセンスを含む場合は、追加前にユーザーへ確認します。
 
 ## Flutter作業
 
@@ -69,3 +76,4 @@ Flutterモバイルアプリを扱う場合は、`skills/flutter-mobile/SKILL.md
 - `docs/overview.md`: プロジェクト範囲と対象プラットフォーム。
 - `docs/harness-design.md`: Docker、サービス、データ、実行コマンド。
 - `docs/test-strategy.md`: 自動確認と手動確認の戦略。
+- `docs/dependency-license-policy.md`: 外部ライブラリやフレームワークのライセンス確認方針。
