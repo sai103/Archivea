@@ -40,6 +40,19 @@ Archivea は、PDF、JPG、PNG、WebP、EPUB、画像ページを含むZIPアー
 - `skills/`: 各クライアント領域で作業するエージェント向けの反復可能な手順。
 - `docker-compose.yml`: 今後追加するローカル実行ハーネスの入口。
 
+## `docs/` と `skills/` を読むタイミング
+
+作業前には、対象領域に対応する `skills/` の手順と、変更内容に関係する `docs/` を確認します。すべてを機械的に読むのではなく、次の基準で必要なファイルを選びます。
+
+- Chrome Webフロントエンドを変更する場合は、実装前に `skills/chrome-web-frontend/SKILL.md` と `docs/typescript-react-coding-rules.md` を読みます。画面、ルーティング、API連携、PDF/画像/ZIPビューア、React/TypeScriptコード、Vite設定、Web向け依存関係を扱う変更が対象です。
+- FastAPIバックエンドを変更する場合は、実装前に `skills/backend-fastapi/SKILL.md` を読みます。API、DBモデル、アップロード、ファイル配信、設定値、テスト、バックエンド依存関係を扱う変更が対象です。
+- Flutterモバイルアプリを変更する場合は、実装前に `skills/flutter-mobile/SKILL.md` を読みます。Flutter画面、モバイル側API連携、将来のiOS/Android向け構成を扱う変更が対象です。
+- プロジェクト範囲、対象プラットフォーム、ディレクトリ構成に関わる変更では `docs/overview.md` を確認します。
+- Docker、ローカル起動、サンプルデータ、生成データ、アップロードファイル、DB、ログ、再現可能な開発環境に関わる変更では `docs/harness-design.md` を確認します。
+- テスト方針、自動確認、手動確認、サンプルファイルによる検証手順に関わる変更では `docs/test-strategy.md` を確認します。
+- 外部ライブラリやフレームワークを追加・更新する場合は、実装前または同じ変更内で `docs/dependency-license-policy.md` を確認します。
+- アーキテクチャ、ハーネス、API契約、データ永続化、対象プラットフォーム、依存関係の方針を変える場合は、関連する `docs/` を同じ変更で更新します。
+
 ## エンジニアリングルール
 
 - 大きな書き換えより、小さくテストしやすい変更を優先する。
