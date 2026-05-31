@@ -6,26 +6,39 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { Link, useParams } from 'react-router';
 import {
   fetchDocuments,
+  fetchEpubChapters,
   fetchZipPages,
   getContentUrl,
+  getEpubChapterContentUrl,
   getPageContentUrl,
   isSampleDocument,
   type DocumentItem,
+  type EpubChapterItem,
   type ZipPageItem,
 } from '../../api/documents';
 import './DocumentViewerScreen.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+// 閲覧画面全体の読み込み状態を表す。
 type ViewerState =
+  // ドキュメント情報やページ情報を取得中。
   | { status: 'loading' }
-  | { status: 'success'; document: DocumentItem; pages?: ZipPageItem[] }
+  // 取得成功。形式に応じてZIPページ一覧またはEPUB章一覧を持つ。
+  | { status: 'success'; document: DocumentItem; pages?: ZipPageItem[]; chapters?: EpubChapterItem[] }
+  // 取得失敗またはURLパラメータ不正。
   | { status: 'error'; message: string };
 
+/**
+ * ドキュメントが単体画像形式かどうかを判定する。
+ */
 function isImageDocument(document: DocumentItem) {
   return document.mimeType.startsWith('image/');
 }
 
+/**
+ * MIME typeを画面表示用の形式名へ変換する。
+ */
 function getDocumentKindLabel(mimeType: string) {
   if (mimeType === 'application/pdf') {
     return 'PDF';
@@ -46,6 +59,9 @@ function getDocumentKindLabel(mimeType: string) {
   return mimeType;
 }
 
+/**
+ * APIが返す日時文字列を日本語表示用の日時へ変換する。
+ */
 function formatCreatedAt(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -58,14 +74,52 @@ function formatCreatedAt(value: string) {
   }).format(date);
 }
 
-interface SamplePagePreviewProps {
+interface ViewerMetadataProps {
+  // メタ情報を表示する対象ドキュメント。
   document: DocumentItem;
+}
+
+/**
+ * 閲覧画面のヘッダー下に表示するドキュメントメタ情報。
+ * 全画面表示ではCSSで非表示にする。
+ */
+function ViewerMetadata({ document }: ViewerMetadataProps) {
+  return (
+    <aside className="viewer-metadata" aria-label="ファイル情報">
+      <dl>
+        <div>
+          <dt>ジャンル</dt>
+          <dd>{document.genre ?? '未分類'}</dd>
+        </div>
+        <div>
+          <dt>形式</dt>
+          <dd>{getDocumentKindLabel(document.mimeType)}</dd>
+        </div>
+        <div>
+          <dt>アップロード日</dt>
+          <dd>{formatCreatedAt(document.createdAt)}</dd>
+        </div>
+      </dl>
+    </aside>
+  );
+}
+
+interface SamplePagePreviewProps {
+  // 仮ページとして表示する対象ドキュメント。
+  document: DocumentItem;
+  // 仮ページ番号。色とページ番号表示に使う。
   pageNumber: number;
+  // 小さめ表示が必要な場合のフラグ。現時点では将来拡張用。
   isCompact?: boolean;
 }
 
+/**
+ * API接続失敗時の仮ドキュメントをページ風に見せるプレビュー。
+ */
 function SamplePagePreview({ document, pageNumber, isCompact = false }: SamplePagePreviewProps) {
+  // ドキュメント形式の表示名。
   const kind = getDocumentKindLabel(document.mimeType);
+  // ページ番号に応じて仮ページの色を変えるCSSクラス。
   const pageTone = ['sample-page-green', 'sample-page-blue', 'sample-page-ink', 'sample-page-red'][
     pageNumber % 4
   ];
@@ -91,52 +145,98 @@ function SamplePagePreview({ document, pageNumber, isCompact = false }: SamplePa
 }
 
 interface SampleReaderProps {
+  // 仮ビューアで表示する対象ドキュメント。
   document: DocumentItem;
+  // ZIP仮データなど、複数ページを持つ場合のページ一覧。
   pages?: ZipPageItem[];
+  // 現在表示している0始まりのページ番号。
   selectedPageIndex: number;
+  // 表示ページを変更するためのコールバック。
   onChangePage: (pageIndex: number) => void;
+  // 全画面表示中かどうか。
   isFullscreen: boolean;
+  // 全画面表示を切り替えるコールバック。
   onToggleFullscreen: () => void;
 }
 
 interface PdfReaderProps {
+  // PDFとして表示する対象ドキュメント。
   document: DocumentItem;
+  // 現在表示している0始まりのページ番号。
   selectedPageIndex: number;
+  // 1ページ表示または2ページ表示。
   spreadMode: 'single' | 'double';
+  // 全画面表示中かどうか。
   isFullscreen: boolean;
+  // 表示ページを変更するためのコールバック。
   onChangePage: (pageIndex: number) => void;
+  // 1ページ表示/2ページ表示を変更するためのコールバック。
   onChangeSpreadMode: (mode: 'single' | 'double') => void;
+  // 全画面表示を切り替えるコールバック。
+  onToggleFullscreen: () => void;
+}
+
+interface EpubReaderProps {
+  // EPUBのspine順に並んだ章一覧。
+  chapters: EpubChapterItem[];
+  // 現在表示している0始まりの章番号。
+  selectedChapterIndex: number;
+  // 全画面表示中かどうか。
+  isFullscreen: boolean;
+  // 表示章を変更するためのコールバック。
+  onChangeChapter: (chapterIndex: number) => void;
+  // 全画面表示を切り替えるコールバック。
   onToggleFullscreen: () => void;
 }
 
 interface PdfPageCanvasProps {
+  // pdfjs-distが読み込んだPDFドキュメント。
   pdfDocument: PDFDocumentProxy;
+  // 描画対象の0始まりページ番号。
   pageIndex: number;
 }
 
 interface ReaderControlsProps {
+  // 操作対象の総ページ数または総章数。
   pageCount: number;
+  // 現在選択されている0始まりのページ番号。
   selectedPageIndex: number;
+  // ページ送り単位を決める表示モード。
   spreadMode: 'single' | 'double';
+  // 1ページ/2ページ切替ボタンを表示するかどうか。
+  isSpreadModeEnabled?: boolean;
+  // 表示ページを変更するためのコールバック。
   onChangePage: (pageIndex: number) => void;
+  // 表示モードを変更するためのコールバック。
   onChangeSpreadMode: (mode: 'single' | 'double') => void;
+  // 全画面表示中かどうか。
   isFullscreen: boolean;
+  // 全画面表示を切り替えるコールバック。
   onToggleFullscreen: () => void;
 }
 
+/**
+ * PDF、ZIP画像、EPUBで共通利用するページ操作UI。
+ */
 function ReaderControls({
   pageCount,
   selectedPageIndex,
   spreadMode,
+  isSpreadModeEnabled = true,
   onChangePage,
   onChangeSpreadMode,
   isFullscreen,
   onToggleFullscreen,
 }: ReaderControlsProps) {
+  // 2ページ表示時はページ送りも2ページ単位にする。
   const pageStep = spreadMode === 'double' ? 2 : 1;
+  // 前ページへ移動可能かどうか。
   const canGoPrevious = selectedPageIndex > 0;
+  // 現在の表示で見えている最後のページ番号。
   const visibleLastPageIndex = Math.min(pageCount - 1, selectedPageIndex + pageStep - 1);
+  // 次ページへ移動可能かどうか。
   const canGoNext = visibleLastPageIndex < pageCount - 1;
+  // 2ページ表示時にスライダー値を偶数ページ開始へ揃える。
   const normalizePageIndex = (pageIndex: number) => {
     if (spreadMode === 'single') {
       return pageIndex;
@@ -145,14 +245,17 @@ function ReaderControls({
     return Math.max(0, pageIndex - (pageIndex % pageStep));
   };
 
+  // 前ページボタン押下時のページ移動処理。
   const handlePrevious = () => {
     onChangePage(Math.max(0, selectedPageIndex - pageStep));
   };
 
+  // 次ページボタン押下時のページ移動処理。
   const handleNext = () => {
     onChangePage(Math.min(pageCount - 1, selectedPageIndex + pageStep));
   };
 
+  // ページ位置スライダー変更時のページ移動処理。
   const handleSeek = (event: ChangeEvent<HTMLInputElement>) => {
     onChangePage(normalizePageIndex(Number(event.target.value)));
   };
@@ -178,20 +281,24 @@ function ReaderControls({
         <button type="button" onClick={handleNext} disabled={!canGoNext}>
           次へ
         </button>
-        <button
-          type="button"
-          className={spreadMode === 'single' ? 'reader-mode-active' : undefined}
-          onClick={() => onChangeSpreadMode('single')}
-        >
-          1ページ
-        </button>
-        <button
-          type="button"
-          className={spreadMode === 'double' ? 'reader-mode-active' : undefined}
-          onClick={() => onChangeSpreadMode('double')}
-        >
-          2ページ
-        </button>
+        {isSpreadModeEnabled && (
+          <>
+            <button
+              type="button"
+              className={spreadMode === 'single' ? 'reader-mode-active' : undefined}
+              onClick={() => onChangeSpreadMode('single')}
+            >
+              1ページ
+            </button>
+            <button
+              type="button"
+              className={spreadMode === 'double' ? 'reader-mode-active' : undefined}
+              onClick={() => onChangeSpreadMode('double')}
+            >
+              2ページ
+            </button>
+          </>
+        )}
         {isFullscreen && (
           <button type="button" onClick={onToggleFullscreen}>
             全画面を解除
@@ -202,10 +309,16 @@ function ReaderControls({
   );
 }
 
+/**
+ * PDFの1ページをcanvasへ描画するコンポーネント。
+ */
 function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
+  // PDF描画先のcanvas要素。
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // PDFページ描画の状態。
   const [renderState, setRenderState] = useState<'loading' | 'success' | 'error'>('loading');
 
+  // pageIndexが変わるたびにpdfjsで対象ページを読み込み、canvasへ再描画する。
   useEffect(() => {
     let isActive = true;
     let renderTask: ReturnType<PDFPageProxy['render']> | undefined;
@@ -275,6 +388,9 @@ function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
   );
 }
 
+/**
+ * PDFドキュメントをページ単位で表示するリーダー。
+ */
 function PdfReader({
   document,
   selectedPageIndex,
@@ -290,6 +406,7 @@ function PdfReader({
     | { status: 'error'; message: string }
   >({ status: 'loading' });
 
+  // PDF本文URLをpdfjsで読み込み、ページ数を取得する。
   useEffect(() => {
     let isActive = true;
     const loadingTask = pdfjsLib.getDocument(getContentUrl(document.id));
@@ -358,6 +475,68 @@ function PdfReader({
   );
 }
 
+/**
+ * EPUBの章をiframeで表示するリーダー。
+ */
+function EpubReader({
+  chapters,
+  selectedChapterIndex,
+  isFullscreen,
+  onChangeChapter,
+  onToggleFullscreen,
+}: EpubReaderProps) {
+  // 現在表示するEPUB章。
+  const selectedChapter = chapters[selectedChapterIndex];
+
+  if (!selectedChapter) {
+    return <p className="viewer-status">EPUBに表示できる章がありません</p>;
+  }
+
+  return (
+    <div className="epub-reader">
+      <div className="page-spread">
+        <iframe
+          title={selectedChapter.title}
+          src={getEpubChapterContentUrl(selectedChapter.contentUrl)}
+          className="epub-frame"
+          sandbox=""
+        />
+      </div>
+
+      <ReaderControls
+        pageCount={chapters.length}
+        selectedPageIndex={selectedChapterIndex}
+        spreadMode="single"
+        isSpreadModeEnabled={false}
+        onChangePage={onChangeChapter}
+        onChangeSpreadMode={() => undefined}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={onToggleFullscreen}
+      />
+
+      <nav className="epub-chapters" aria-label="EPUB章">
+        {chapters.map((chapter) => (
+          <button
+            key={chapter.index}
+            type="button"
+            className={
+              chapter.index === selectedChapterIndex
+                ? 'epub-chapter-button epub-chapter-button-active'
+                : 'epub-chapter-button'
+            }
+            onClick={() => onChangeChapter(chapter.index)}
+          >
+            {chapter.title}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+/**
+ * APIに接続できない場合の仮データ用リーダー。
+ */
 function SampleReader({
   document,
   pages,
@@ -366,8 +545,11 @@ function SampleReader({
   isFullscreen,
   onToggleFullscreen,
 }: SampleReaderProps) {
+  // 仮リーダー内の1ページ/2ページ表示モード。
   const [spreadMode, setSpreadMode] = useState<'single' | 'double'>('single');
+  // 仮データが持つ総ページ数。
   const pageCount = pages?.length ?? document.pageCount ?? 1;
+  // 2ページ表示時に右側へ表示するページ番号。
   const secondPageIndex =
     spreadMode === 'double' && selectedPageIndex + 1 < pageCount ? selectedPageIndex + 1 : undefined;
 
@@ -436,15 +618,27 @@ function SampleReader({
   );
 }
 
+/**
+ * ドキュメント閲覧画面。
+ * URLのdocumentIdから対象ドキュメントを取得し、形式別ビューアへ振り分ける。
+ */
 export function DocumentViewerScreen() {
+  // URLパラメータとして渡されるドキュメントID文字列。
   const { documentId } = useParams();
+  // 数値化したドキュメントID。API取得と対象検索に使う。
   const parsedDocumentId = Number(documentId);
+  // Fullscreen APIの対象にする閲覧レイアウト要素。
   const viewerLayoutRef = useRef<HTMLElement>(null);
+  // 閲覧画面全体の読み込み状態。
   const [viewerState, setViewerState] = useState<ViewerState>({ status: 'loading' });
+  // 現在表示しているページ番号またはEPUB章番号。
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
+  // Fullscreen API上で閲覧レイアウトが全画面表示中かどうか。
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // PDF/ZIP画像本で使う1ページ/2ページ表示モード。
   const [zipSpreadMode, setZipSpreadMode] = useState<'single' | 'double'>('single');
 
+  // documentIdが変わった時に対象ドキュメントと形式別の補助データを読み込む。
   useEffect(() => {
     let isActive = true;
 
@@ -465,6 +659,11 @@ export function DocumentViewerScreen() {
         if (document.mimeType === 'application/zip') {
           const pages = await fetchZipPages(document.id);
           return { document, pages };
+        }
+
+        if (document.mimeType === 'application/epub+zip') {
+          const chapters = await fetchEpubChapters(document.id);
+          return { document, chapters };
         }
 
         return { document };
@@ -488,6 +687,7 @@ export function DocumentViewerScreen() {
     };
   }, [parsedDocumentId]);
 
+  // ブラウザの全画面状態変更をReact stateへ反映する。
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(document.fullscreenElement === viewerLayoutRef.current);
@@ -500,6 +700,7 @@ export function DocumentViewerScreen() {
     };
   }, []);
 
+  // ZIP画像本で現在表示する左側ページを取得する。
   const selectedPage = useMemo(() => {
     if (viewerState.status !== 'success' || !viewerState.pages) {
       return undefined;
@@ -508,6 +709,9 @@ export function DocumentViewerScreen() {
     return viewerState.pages[selectedPageIndex];
   }, [selectedPageIndex, viewerState]);
 
+  /**
+   * 閲覧領域の全画面表示を切り替える。
+   */
   const handleToggleFullscreen = async () => {
     if (!viewerLayoutRef.current) {
       return;
@@ -556,6 +760,8 @@ export function DocumentViewerScreen() {
             {viewerState.message}
           </p>
         )}
+
+        {viewerState.status === 'success' && <ViewerMetadata document={viewerState.document} />}
 
         {viewerState.status === 'success' && isImageDocument(viewerState.document) && (
           isSampleDocument(viewerState.document) ? (
@@ -706,25 +912,15 @@ export function DocumentViewerScreen() {
               }}
             />
           ) : (
-            <div className="viewer-status-group">
-              <p className="viewer-status">EPUBビューアは未実装です</p>
-              <aside className="viewer-details viewer-details-standalone" aria-label="ファイル情報">
-                <dl>
-                  <div>
-                    <dt>種類</dt>
-                    <dd>{getDocumentKindLabel(viewerState.document.mimeType)}</dd>
-                  </div>
-                  <div>
-                    <dt>ジャンル</dt>
-                    <dd>{viewerState.document.genre ?? '未分類'}</dd>
-                  </div>
-                  <div>
-                    <dt>作成日時</dt>
-                    <dd>{formatCreatedAt(viewerState.document.createdAt)}</dd>
-                  </div>
-                </dl>
-              </aside>
-            </div>
+            <EpubReader
+              chapters={viewerState.chapters ?? []}
+              selectedChapterIndex={selectedPageIndex}
+              isFullscreen={isFullscreen}
+              onChangeChapter={setSelectedPageIndex}
+              onToggleFullscreen={() => {
+                void handleToggleFullscreen();
+              }}
+            />
           ))}
       </section>
     </main>

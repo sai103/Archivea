@@ -1,6 +1,10 @@
 import { Link } from 'react-router';
 import './MenuScreen.css';
 
+/**
+ * ログイン後に表示する主要機能メニュー。
+ * 閲覧画面と設定画面への導線を提供する。
+ */
 export function MenuScreen() {
   return (
     <main className="menu-shell">

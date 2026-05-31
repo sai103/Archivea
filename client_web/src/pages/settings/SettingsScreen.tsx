@@ -3,9 +3,18 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import './SettingsScreen.css';
 
+/**
+ * アプリケーション設定画面。
+ * 現行MVPではAPI接続先の表示と保存操作のUI確認を行う仮実装。
+ */
 export function SettingsScreen() {
+  // 保存操作後にユーザーへ表示するステータスメッセージ。
   const [saveMessage, setSaveMessage] = useState('');
 
+  /**
+   * 設定フォーム送信時の処理。
+   * 現時点では永続化せず、保存完了メッセージだけを表示する。
+   */
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaveMessage('設定を保存しました');

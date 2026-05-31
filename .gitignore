@@ -12,6 +12,8 @@ dist/
 *.db.*
 uploads/
 backend/uploads/
+backend/logs/
 backend/library.db
+.tmp/
 .agents/
 skills-lock.json

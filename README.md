@@ -52,6 +52,7 @@ React、TypeScript、Viteは最新の安定版を利用します。バージョ�
 ## 関連ドキュメント
 - `AGENTS.md`: エージェント向けの全体的な進め方
 - `docs/overview.md`: プロジェクト概要
+- `docs/database-spec.md`: DBテーブルと永続化仕様
 - `docs/android-first-architecture.md`: Chrome先行 + 将来モバイルの構成方針
 - `docs/harness-design.md`: ハーネス設計の考え方
 - `docs/test-strategy.md`: テスト戦略

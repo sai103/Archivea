@@ -4,18 +4,31 @@ import { Link } from 'react-router';
 import { fetchDocuments, fetchGenres, type DocumentItem, type GenreItem } from '../../api/documents';
 import './DocumentListScreen.css';
 
+// ドキュメント一覧画面の読み込み状態を表す。
 type LoadState =
+  // API取得中。
   | { status: 'loading' }
+  // API取得成功。画面表示に使うドキュメント一覧とジャンル一覧を持つ。
   | { status: 'success'; documents: DocumentItem[]; genres: GenreItem[] }
+  // API取得またはレスポンス変換に失敗。
   | { status: 'error'; message: string };
 
+/**
+ * 登録済みドキュメントを検索、絞り込みし、閲覧画面へ遷移する一覧画面。
+ */
 export function DocumentListScreen() {
+  // ドキュメント一覧とジャンル一覧の取得状態。
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' });
+  // ジャンル選択フォームで現在選ばれている値。
   const [selectedGenre, setSelectedGenre] = useState('');
+  // タイトル検索フォームへ入力中の文字列。
   const [nameInput, setNameInput] = useState('');
+  // 検索実行後に適用されるジャンル条件。
   const [genreQuery, setGenreQuery] = useState('');
+  // 検索実行後に適用されるタイトル条件。
   const [nameQuery, setNameQuery] = useState('');
 
+  // 初回表示時にバックエンドからドキュメント一覧とジャンル一覧を取得する。
   useEffect(() => {
     let isActive = true;
 
@@ -37,6 +50,7 @@ export function DocumentListScreen() {
     };
   }, []);
 
+  // 取得済みドキュメントを、検索実行済みのジャンル条件とタイトル条件で絞り込む。
   const filteredDocuments = useMemo(() => {
     if (loadState.status !== 'success') {
       return [];
@@ -54,6 +68,10 @@ export function DocumentListScreen() {
     });
   }, [genreQuery, loadState, nameQuery]);
 
+  /**
+   * 検索フォーム送信時の処理。
+   * 入力中の値を検索条件として確定させ、filteredDocumentsの再計算を発生させる。
+   */
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setGenreQuery(selectedGenre);

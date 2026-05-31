@@ -1,6 +1,7 @@
 param(
     [int]$ApiPort = 8000,
-    [int]$WebPort = 5173
+    [int]$WebPort = 5173,
+    [string]$ApiLogConfig = "config\logging.dev.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +11,7 @@ $backendDir = Join-Path $repoRoot "backend"
 $clientWebDir = Join-Path $repoRoot "client_web"
 $venvDir = Join-Path $backendDir ".venv"
 $pythonExe = Join-Path $venvDir "Scripts\python.exe"
+$apiLogConfigPath = Join-Path $backendDir $ApiLogConfig
 
 function Test-CommandExists {
     param([string]$Name)
@@ -41,13 +43,43 @@ function Ensure-ClientWeb {
     }
 }
 
+function Ensure-LogDirectories {
+    param([string]$LogConfigPath)
+
+    if (-not (Test-Path $LogConfigPath)) {
+        throw "API log config was not found: $LogConfigPath"
+    }
+
+    $logConfig = Get-Content $LogConfigPath -Raw | ConvertFrom-Json
+    $handlerProperties = $logConfig.handlers.PSObject.Properties
+
+    foreach ($handlerProperty in $handlerProperties) {
+        $handler = $handlerProperty.Value
+        if ($null -eq $handler.filename) {
+            continue
+        }
+
+        $logFilePath = $handler.filename
+        if (-not [System.IO.Path]::IsPathRooted($logFilePath)) {
+            $logFilePath = Join-Path $backendDir $logFilePath
+        }
+
+        $logDirectory = Split-Path $logFilePath -Parent
+        if (-not (Test-Path $logDirectory)) {
+            New-Item -ItemType Directory -Path $logDirectory | Out-Null
+        }
+    }
+}
+
 Ensure-Backend
 Ensure-ClientWeb
+Ensure-LogDirectories -LogConfigPath $apiLogConfigPath
 
 Write-Host "Starting Archivea API on http://127.0.0.1:$ApiPort"
+Write-Host "API log config: $apiLogConfigPath"
 $apiProcess = Start-Process `
     -FilePath $pythonExe `
-    -ArgumentList @("-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "$ApiPort") `
+    -ArgumentList @("-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "$ApiPort", "--log-config", "$apiLogConfigPath") `
     -WorkingDirectory $backendDir `
     -PassThru
 
