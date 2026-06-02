@@ -23,7 +23,7 @@ from app.constants import (
     TEST_ZIP_TITLE,
 )
 from app.database import UPLOAD_DIR
-from app.models import Document, Genre
+from app.models import AppSettings, Document, Genre
 from app.services.media import copy_image_directory_pages, extract_zip_images
 
 
@@ -136,13 +136,23 @@ def seed_test_image_directory(session: Session):
     )
 
 
+def seed_settings(session: Session):
+    """settingsテーブルのシングルトン行が未存在の場合にUPLOAD_DIRで初期化する。"""
+    if session.get(AppSettings, 1) is None:
+        session.add(AppSettings(storage_dir=str(UPLOAD_DIR)))
+
+
 def seed_startup_data(session: Session):
     """アプリ起動時に必要な初期ジャンルとローカル確認用データを投入する。"""
     existing_names = set(session.exec(select(Genre.name)).all())
     for name in DEFAULT_GENRES:
         if name not in existing_names:
             session.add(Genre(name=name))
+    session.flush()
 
+    genre_by_name = {g.name: g.id for g in session.exec(select(Genre)).all()}
+
+    seed_settings(session)
     seed_test_pdf(session)
     seed_test_file(
         session=session,
@@ -162,3 +172,17 @@ def seed_startup_data(session: Session):
     )
     seed_test_zip(session)
     seed_test_image_directory(session)
+
+    # シードドキュメントにジャンルが未設定の場合は仮割り当てを行う。
+    seed_genre_map = {
+        TEST_PDF_STORED_NAME: genre_by_name.get("技術資料"),
+        TEST_PNG_STORED_NAME: genre_by_name.get("画像"),
+        TEST_EPUB_STORED_NAME: genre_by_name.get("書籍"),
+        TEST_ZIP_STORED_NAME: genre_by_name.get("コミック"),
+        TEST_IMAGE_DIRECTORY_STORED_NAME: genre_by_name.get("コミック"),
+    }
+    for stored_name, genre_id in seed_genre_map.items():
+        doc = session.exec(select(Document).where(Document.stored_name == stored_name)).first()
+        if doc is not None and doc.genre_id is None and genre_id is not None:
+            doc.genre_id = genre_id
+            session.add(doc)

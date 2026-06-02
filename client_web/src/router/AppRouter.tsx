@@ -4,6 +4,7 @@ import { DocumentViewerScreen } from '../pages/documentViewer/DocumentViewerScre
 import { LoginScreen } from '../pages/login/LoginScreen';
 import { MenuScreen } from '../pages/menu/MenuScreen';
 import { SettingsScreen } from '../pages/settings/SettingsScreen';
+import { UploadScreen } from '../pages/upload/UploadScreen';
 
 /**
  * 画面URLとReact画面コンポーネントの対応を定義するルーター。
@@ -21,6 +22,7 @@ export function AppRouter() {
         {/* documentIdはバックエンドのdocuments.idをURLパラメータとして受け取る。 */}
         <Route path="/documents/:documentId" element={<DocumentViewerScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
+        <Route path="/upload" element={<UploadScreen />} />
         {/* 存在しないURLはログイン画面に戻す。 */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

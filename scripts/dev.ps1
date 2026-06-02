@@ -33,6 +33,19 @@ function Ensure-ClientWeb {
         throw "npm.cmd was not found. Install Node.js before running this script."
     }
 
+    $lockFile     = Join-Path $clientWebDir "package-lock.json"
+    $installedMark = Join-Path $clientWebDir "node_modules\.package-lock.json"
+
+    # node_modulesが存在しpackage-lock.jsonより新しければ再インストールをスキップする。
+    if ((Test-Path $installedMark) -and (Test-Path $lockFile)) {
+        $lockTime      = (Get-Item $lockFile).LastWriteTimeUtc
+        $installedTime = (Get-Item $installedMark).LastWriteTimeUtc
+        if ($installedTime -ge $lockTime) {
+            Write-Host "Web dependencies are up to date, skipping npm ci."
+            return
+        }
+    }
+
     Write-Host "Installing web dependencies..."
     Push-Location $clientWebDir
     try {

@@ -20,6 +20,11 @@ export function MenuScreen() {
             <span className="menu-item-text">登録済みファイルを検索して画像を開く</span>
           </Link>
 
+          <Link to="/upload" className="menu-item">
+            <span className="menu-item-title">アップロード</span>
+            <span className="menu-item-text">PDF / 画像 / EPUB / ZIPを登録する</span>
+          </Link>
+
           <Link to="/settings" className="menu-item">
             <span className="menu-item-title">設定</span>
             <span className="menu-item-text">API接続先</span>

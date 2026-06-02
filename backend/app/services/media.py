@@ -45,7 +45,7 @@ def extract_zip_images(zip_path: Path, output_dir: Path) -> list[str]:
         if not candidates:
             raise HTTPException(
                 status_code=400,
-                detail="ZIP must contain at least one JPG/PNG/WebP file",
+                detail="ZIPにはJPG・PNG・WebPのファイルが1枚以上必要です",
             )
 
         # ZIP内画像の表示順はファイル名昇順で固定する。
@@ -77,7 +77,7 @@ def copy_image_directory_pages(source_dir: Path, output_dir: Path) -> list[str]:
     if not candidates:
         raise HTTPException(
             status_code=400,
-            detail="Image directory must contain at least one JPG/PNG/WebP file",
+            detail="フォルダにはJPG・PNG・WebPのファイルが1枚以上必要です",
         )
 
     # コピー先は元ディレクトリの現在状態に合わせるため、既存ページを一度削除する。
@@ -115,7 +115,7 @@ def normalize_epub_member(base_path: str, href: str) -> str:
     clean_href = unquote(urldefrag(href)[0])
     joined_path = posixpath.normpath(posixpath.join(posixpath.dirname(base_path), clean_href))
     if joined_path.startswith("../") or joined_path.startswith("/") or joined_path == "..":
-        raise HTTPException(status_code=400, detail="Invalid EPUB member path")
+        raise HTTPException(status_code=400, detail="EPUBのパスが不正です")
     return joined_path
 
 
@@ -130,11 +130,11 @@ def read_epub_spine(epub_path: Path) -> list[tuple[str, str]]:
                 ".//{urn:oasis:names:tc:opendocument:xmlns:container}rootfile"
             )
             if rootfile is None:
-                raise HTTPException(status_code=400, detail="EPUB rootfile not found")
+                raise HTTPException(status_code=400, detail="EPUBのルートファイルが見つかりません")
 
             opf_path = rootfile.attrib.get("full-path")
             if not opf_path:
-                raise HTTPException(status_code=400, detail="EPUB package path not found")
+                raise HTTPException(status_code=400, detail="EPUBのパッケージパスが見つかりません")
 
             # OPF manifestはidからファイルhrefを引ける辞書として保持する。
             opf_root = ET.fromstring(archive.read(opf_path))
@@ -162,14 +162,14 @@ def read_epub_spine(epub_path: Path) -> list[tuple[str, str]]:
                 chapters.append((title, chapter_path))
 
             if not chapters:
-                raise HTTPException(status_code=400, detail="EPUB spine is empty")
+                raise HTTPException(status_code=400, detail="EPUBに読み取れる章がありません")
 
             return chapters
     except HTTPException:
         raise
     except KeyError as error:
-        raise HTTPException(status_code=400, detail="Invalid EPUB manifest") from error
+        raise HTTPException(status_code=400, detail="EPUBのマニフェストが不正です") from error
     except ET.ParseError as error:
-        raise HTTPException(status_code=400, detail="Invalid EPUB XML") from error
+        raise HTTPException(status_code=400, detail="EPUBのXMLが不正です") from error
     except FileNotFoundError as error:
-        raise HTTPException(status_code=404, detail="Stored EPUB not found") from error
+        raise HTTPException(status_code=404, detail="EPUBファイルが見つかりません") from error

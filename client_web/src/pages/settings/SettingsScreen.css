@@ -57,6 +57,150 @@
   font-weight: 700;
 }
 
+.settings-section-title {
+  margin: 0 0 4px;
+  color: #26323a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.genre-section {
+  margin-bottom: 18px;
+}
+
+.settings-error {
+  margin: 0;
+  color: #c0392b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.settings-loading {
+  margin: 0;
+  color: #6b7f73;
+  font-size: 0.9rem;
+}
+
+/* ジャンル削除・追加の行レイアウト */
+.genre-delete-row,
+.genre-add-row {
+  display: grid;
+  gap: 6px;
+}
+
+.genre-row-label {
+  color: #26323a;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.genre-delete-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.doc-select-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doc-select-stack .genre-add-input {
+  flex: none;
+}
+
+.doc-select-stack .genre-select {
+  min-height: unset;
+  padding: 6px 12px;
+}
+
+.doc-select-hint {
+  margin: 0;
+  color: #6b7f73;
+  font-size: 0.78rem;
+}
+
+.genre-select {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172026;
+  font-size: 0.95rem;
+}
+
+.genre-select:focus {
+  border-color: #2f6f55;
+  outline: 3px solid rgba(47, 111, 85, 0.18);
+}
+
+.genre-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.genre-delete-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #c0392b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.genre-delete-button:hover:not(:disabled) {
+  border-color: #c0392b;
+  background: #fdf2f1;
+}
+
+.genre-delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.genre-add-input {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b9c4bd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172026;
+  font-size: 0.95rem;
+}
+
+.genre-add-input:focus {
+  border-color: #2f6f55;
+  outline: 3px solid rgba(47, 111, 85, 0.18);
+}
+
+.genre-add-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  background: #2f6f55;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.genre-add-button:hover:not(:disabled) {
+  background: #285d49;
+}
+
+.genre-add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-field {
   display: grid;
   gap: 8px;
@@ -94,6 +238,27 @@
   justify-content: flex-end;
 }
 
+.settings-actions .danger-button {
+  min-height: 44px;
+  min-width: 80px;
+  padding: 0 18px;
+  border: 1px solid #c0392b;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #c0392b;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-actions .danger-button:hover:not(:disabled) {
+  background: #fdf2f1;
+}
+
+.settings-actions .danger-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-actions .primary-button {
   min-height: 44px;
   min-width: 120px;
@@ -108,6 +273,91 @@
 
 .settings-actions .primary-button:hover {
   background: #285d49;
+}
+
+/* 削除確認モーダル */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 32, 38, 0.45);
+  z-index: 100;
+}
+
+.modal-box {
+  width: min(90%, 400px);
+  padding: 28px 24px 24px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(23, 32, 38, 0.18);
+  display: grid;
+  gap: 16px;
+}
+
+.modal-title {
+  margin: 0;
+  color: #172026;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.modal-message {
+  margin: 0;
+  color: #26323a;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.modal-doc-list {
+  margin: 0;
+  padding: 0 0 0 1.2em;
+  color: #26323a;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-button {
+  min-height: 40px;
+  min-width: 80px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-button--cancel {
+  border: 1px solid #b9c4bd;
+  background: #ffffff;
+  color: #26323a;
+}
+
+.modal-button--cancel:hover:not(:disabled) {
+  border-color: #2f6f55;
+  color: #2f6f55;
+}
+
+.modal-button--confirm {
+  border: 0;
+  background: #c0392b;
+  color: #ffffff;
+}
+
+.modal-button--confirm:hover:not(:disabled) {
+  background: #a93224;
 }
 
 @media (max-width: 640px) {

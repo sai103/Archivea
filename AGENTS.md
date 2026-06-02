@@ -37,7 +37,7 @@ Archivea は、PDF、JPG、PNG、WebP、EPUB、画像ページを含むZIPアー
 - `client_web/`: Chrome先行のWebフロントエンド。React + TypeScript + Viteを想定。
 - `client_flutter/`: 将来のiOS/Android向けFlutterアプリケーション。
 - `docs/`: プロジェクト概要、ハーネス設計、テスト戦略。
-- `skills/`: 各クライアント領域で作業するエージェント向けの反復可能な手順。
+- `.agents/skills/`: 各クライアント領域で作業するエージェント向けの反復可能な手順。実体は `.agents/skills/` に置き、`AGENTS.md` 内では `skills/` と表記する。
 - `docker-compose.yml`: 今後追加するローカル実行ハーネスの入口。
 
 ## `docs/` と `skills/` を読むタイミング
@@ -50,8 +50,13 @@ Archivea は、PDF、JPG、PNG、WebP、EPUB、画像ページを含むZIPアー
 - プロジェクト範囲、対象プラットフォーム、ディレクトリ構成に関わる変更では `docs/overview.md` を確認します。
 - Docker、ローカル起動、サンプルデータ、生成データ、アップロードファイル、DB、ログ、再現可能な開発環境に関わる変更では `docs/harness-design.md` を確認します。
 - テスト方針、自動確認、手動確認、サンプルファイルによる検証手順に関わる変更では `docs/test-strategy.md` を確認します。
+- 外部ライブラリやフレームワークを新規導入する場合は、実装前に `skills/confirm-new-library/SKILL.md` を読み、ユーザーへの確認手順に従います。
 - 外部ライブラリやフレームワークを追加・更新する場合は、実装前または同じ変更内で `docs/dependency-license-policy.md` を確認します。
 - アーキテクチャ、ハーネス、API契約、データ永続化、対象プラットフォーム、依存関係の方針を変える場合は、関連する `docs/` を同じ変更で更新します。
+
+## スキルの追加
+
+新しいスキルを作成する場合は、`.agents/skills/<スキル名>/SKILL.md` に配置します。スキルを追加したら、このファイルの `## \`docs/\` と \`skills/\` を読むタイミング` セクションに、そのスキルをいつ読むべきかを追記します。
 
 ## エンジニアリングルール
 

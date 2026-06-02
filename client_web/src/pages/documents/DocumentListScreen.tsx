@@ -1,8 +1,15 @@
-import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { fetchDocuments, fetchGenres, type DocumentItem, type GenreItem } from '../../api/documents';
 import './DocumentListScreen.css';
+
+// バイト数を KB / MB / GB の読みやすい文字列へ変換する。
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
 
 // ドキュメント一覧画面の読み込み状態を表す。
 type LoadState =
@@ -23,10 +30,6 @@ export function DocumentListScreen() {
   const [selectedGenre, setSelectedGenre] = useState('');
   // タイトル検索フォームへ入力中の文字列。
   const [nameInput, setNameInput] = useState('');
-  // 検索実行後に適用されるジャンル条件。
-  const [genreQuery, setGenreQuery] = useState('');
-  // 検索実行後に適用されるタイトル条件。
-  const [nameQuery, setNameQuery] = useState('');
 
   // 初回表示時にバックエンドからドキュメント一覧とジャンル一覧を取得する。
   useEffect(() => {
@@ -40,7 +43,7 @@ export function DocumentListScreen() {
       })
       .catch((error: unknown) => {
         if (isActive) {
-          const message = error instanceof Error ? error.message : '一覧を取得できませんでした';
+          const message = error instanceof Error ? error.message : 'ブック情報を取得できません';
           setLoadState({ status: 'error', message });
         }
       });
@@ -50,33 +53,23 @@ export function DocumentListScreen() {
     };
   }, []);
 
-  // 取得済みドキュメントを、検索実行済みのジャンル条件とタイトル条件で絞り込む。
+  // 取得済みドキュメントを、入力中のジャンル条件とタイトル条件でリアルタイムに絞り込む。
   const filteredDocuments = useMemo(() => {
     if (loadState.status !== 'success') {
       return [];
     }
 
-    const normalizedName = nameQuery.trim().toLowerCase();
+    const normalizedName = nameInput.trim().toLowerCase();
 
     return loadState.documents.filter((document) => {
       const genre = document.genre ?? '';
-      const matchesGenre = genreQuery.length === 0 || genre === genreQuery;
+      const matchesGenre = selectedGenre.length === 0 || genre === selectedGenre;
       const matchesName =
         normalizedName.length === 0 || document.title.toLowerCase().includes(normalizedName);
 
       return matchesGenre && matchesName;
     });
-  }, [genreQuery, loadState, nameQuery]);
-
-  /**
-   * 検索フォーム送信時の処理。
-   * 入力中の値を検索条件として確定させ、filteredDocumentsの再計算を発生させる。
-   */
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setGenreQuery(selectedGenre);
-    setNameQuery(nameInput);
-  };
+  }, [selectedGenre, loadState, nameInput]);
 
   return (
     <main className="documents-shell">
@@ -91,7 +84,7 @@ export function DocumentListScreen() {
           </Link>
         </header>
 
-        <form className="documents-search" onSubmit={handleSearch}>
+        <div className="documents-search">
           <label className="documents-field">
             <span>ジャンル</span>
             <select
@@ -118,11 +111,7 @@ export function DocumentListScreen() {
               placeholder="タイトルで検索"
             />
           </label>
-
-          <button type="submit" className="documents-search-button">
-            検索
-          </button>
-        </form>
+        </div>
 
         {loadState.status === 'loading' && <p className="documents-status">読み込み中です</p>}
 
@@ -145,12 +134,13 @@ export function DocumentListScreen() {
                 className="document-link"
               >
                 <span className="document-title">{document.title}</span>
+                {document.genre && <span className="document-genre">{document.genre}</span>}
                 <span className="document-meta">
-                  {document.genre ? `${document.genre} / ` : ''}
                   {document.mimeType}
                   {document.pageCount ? ` / ${document.pageCount}ページ` : ''}
+                  {document.fileSize !== undefined ? ` / ${formatFileSize(document.fileSize)}` : ''}
+                  {document.isSample && <span className="document-badge">仮データ</span>}
                 </span>
-                {document.isSample && <span className="document-badge">仮データ</span>}
               </Link>
             ))}
           </nav>

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlmodel import SQLModel
 
@@ -10,6 +11,10 @@ class DocumentRead(SQLModel):
     title: str
     mime_type: str
     created_at: datetime
+    # 紐づくジャンル名。未分類の場合はNone。
+    genre: Optional[str] = None
+    # ファイルサイズ（バイト）。ZIPは展開後ページ画像の合計。取得できない場合はNone。
+    file_size: Optional[int] = None
 
 
 class GenreRead(SQLModel):
@@ -17,6 +22,31 @@ class GenreRead(SQLModel):
 
     id: int
     name: str
+
+
+class GenreCreate(SQLModel):
+    """POST /genresで受け取るジャンル作成リクエスト。"""
+
+    name: str
+
+
+class DocumentPatch(SQLModel):
+    """PATCH /documents/{id}で受け取るドキュメント更新リクエスト。"""
+
+    # Noneを指定するとジャンルを未分類に戻す。
+    genre_id: Optional[int] = None
+
+
+class SettingsRead(SQLModel):
+    """GET /settingsで返す設定レスポンス。"""
+
+    storage_dir: str
+
+
+class SettingsUpdate(SQLModel):
+    """PUT /settingsで受け取る設定更新リクエスト。"""
+
+    storage_dir: str
 
 
 class ZipPageRead(SQLModel):
