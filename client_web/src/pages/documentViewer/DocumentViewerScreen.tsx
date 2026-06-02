@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
@@ -194,6 +194,8 @@ interface PdfPageCanvasProps {
   pdfDocument: PDFDocumentProxy;
   // 描画対象の0始まりページ番号。
   pageIndex: number;
+  // 全画面表示中かどうか。全画面では表示枠に合わせて再描画する。
+  isFullscreen: boolean;
 }
 
 interface ReaderControlsProps {
@@ -236,6 +238,8 @@ function ReaderControls({
   const visibleLastPageIndex = Math.min(pageCount - 1, selectedPageIndex + pageStep - 1);
   // 次ページへ移動可能かどうか。
   const canGoNext = visibleLastPageIndex < pageCount - 1;
+  // 全画面中のホイール連続発火をページ単位に抑えるための直近操作時刻。
+  const lastWheelNavigationTimeRef = useRef(0);
   // 2ページ表示時にスライダー値を偶数ページ開始へ揃える。
   const normalizePageIndex = (pageIndex: number) => {
     if (spreadMode === 'single') {
@@ -246,19 +250,77 @@ function ReaderControls({
   };
 
   // 前ページボタン押下時のページ移動処理。
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
+    if (!canGoPrevious) {
+      return;
+    }
+
     onChangePage(Math.max(0, selectedPageIndex - pageStep));
-  };
+  }, [canGoPrevious, onChangePage, pageStep, selectedPageIndex]);
 
   // 次ページボタン押下時のページ移動処理。
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
+    if (!canGoNext) {
+      return;
+    }
+
     onChangePage(Math.min(pageCount - 1, selectedPageIndex + pageStep));
-  };
+  }, [canGoNext, onChangePage, pageCount, pageStep, selectedPageIndex]);
 
   // ページ位置スライダー変更時のページ移動処理。
   const handleSeek = (event: ChangeEvent<HTMLInputElement>) => {
     onChangePage(normalizePageIndex(Number(event.target.value)));
   };
+
+  // 全画面表示中だけ、マウスホイールと左右キーでページ移動できるようにする。
+  useEffect(() => {
+    if (!isFullscreen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key === 'Left') {
+        event.preventDefault();
+        handlePrevious();
+        return;
+      }
+
+      if (event.key === 'ArrowRight' || event.key === 'Right') {
+        event.preventDefault();
+        handleNext();
+      }
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      const primaryDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (Math.abs(primaryDelta) < 30) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const now = Date.now();
+      if (now - lastWheelNavigationTimeRef.current < 320) {
+        return;
+      }
+
+      lastWheelNavigationTimeRef.current = now;
+      if (primaryDelta > 0) {
+        handleNext();
+        return;
+      }
+
+      handlePrevious();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleNext, handlePrevious, isFullscreen]);
 
   return (
     <div className="reader-controls">
@@ -312,11 +374,56 @@ function ReaderControls({
 /**
  * PDFの1ページをcanvasへ描画するコンポーネント。
  */
-function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
+function PdfPageCanvas({ pdfDocument, pageIndex, isFullscreen }: PdfPageCanvasProps) {
+  // PDFページ表示枠の実寸を測るための要素。
+  const pageRef = useRef<HTMLDivElement>(null);
   // PDF描画先のcanvas要素。
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // PDFページ描画の状態。
   const [renderState, setRenderState] = useState<'loading' | 'success' | 'error'>('loading');
+  // 全画面時にPDFページを収めるための表示枠サイズ。
+  const [pageBoxSize, setPageBoxSize] = useState({ width: 0, height: 0 });
+
+  // 全画面表示中は、ページ表示枠のリサイズに合わせてPDF canvasを再描画する。
+  useEffect(() => {
+    if (!isFullscreen || !pageRef.current) {
+      setPageBoxSize({ width: 0, height: 0 });
+      return undefined;
+    }
+
+    const pageElement = pageRef.current;
+    const updatePageBoxSize = (width: number, height: number) => {
+      const nextWidth = Math.floor(width);
+      const nextHeight = Math.floor(height);
+      setPageBoxSize((current) => {
+        if (current.width === nextWidth && current.height === nextHeight) {
+          return current;
+        }
+
+        return { width: nextWidth, height: nextHeight };
+      });
+    };
+
+    updatePageBoxSize(pageElement.clientWidth, pageElement.clientHeight);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      updatePageBoxSize(entry.contentRect.width, entry.contentRect.height);
+    });
+    resizeObserver.observe(pageElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isFullscreen]);
 
   // pageIndexが変わるたびにpdfjsで対象ページを読み込み、canvasへ再描画する。
   useEffect(() => {
@@ -332,7 +439,16 @@ function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
           return;
         }
 
-        const viewport = page.getViewport({ scale: 1.6 });
+        const baseViewport = page.getViewport({ scale: 1 });
+        const fullscreenScale =
+          isFullscreen && pageBoxSize.width > 0 && pageBoxSize.height > 0
+            ? Math.min(pageBoxSize.width / baseViewport.width, pageBoxSize.height / baseViewport.height)
+            : undefined;
+        const displayScale = Math.max(0.1, fullscreenScale ?? 1.6);
+        const outputScale = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: displayScale * outputScale });
+        const displayWidth = Math.floor(baseViewport.width * displayScale);
+        const displayHeight = Math.floor(baseViewport.height * displayScale);
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
         if (!context) {
@@ -341,6 +457,8 @@ function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
 
         renderTask = page.render({
           canvas,
@@ -374,10 +492,10 @@ function PdfPageCanvas({ pdfDocument, pageIndex }: PdfPageCanvasProps) {
       isActive = false;
       renderTask?.cancel();
     };
-  }, [pageIndex, pdfDocument]);
+  }, [isFullscreen, pageBoxSize.height, pageBoxSize.width, pageIndex, pdfDocument]);
 
   return (
-    <div className="pdf-page">
+    <div className="pdf-page" ref={pageRef}>
       {renderState === 'loading' && <p className="pdf-page-status">読み込み中</p>}
       {renderState === 'error' && <p className="pdf-page-status">PDFページを描画できませんでした</p>}
       <canvas
@@ -457,9 +575,17 @@ function PdfReader({
   return (
     <div className="paged-reader">
       <div className={secondPageIndex === undefined ? 'page-spread' : 'page-spread page-spread-double'}>
-        <PdfPageCanvas pdfDocument={pdfState.pdfDocument} pageIndex={selectedPageIndex} />
+        <PdfPageCanvas
+          pdfDocument={pdfState.pdfDocument}
+          pageIndex={selectedPageIndex}
+          isFullscreen={isFullscreen}
+        />
         {secondPageIndex !== undefined && (
-          <PdfPageCanvas pdfDocument={pdfState.pdfDocument} pageIndex={secondPageIndex} />
+          <PdfPageCanvas
+            pdfDocument={pdfState.pdfDocument}
+            pageIndex={secondPageIndex}
+            isFullscreen={isFullscreen}
+          />
         )}
       </div>
       <ReaderControls

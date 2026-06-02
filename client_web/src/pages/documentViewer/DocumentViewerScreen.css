@@ -115,6 +115,8 @@
 
 .page-spread {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 70vh;
   place-items: center;
   padding: 24px;
@@ -184,8 +186,8 @@
 
 .viewer-layout:fullscreen .page-spread {
   width: 100%;
-  height: 100%;
-  max-height: 100%;
+  height: auto;
+  max-height: none;
   min-height: 0;
   padding: 0;
   overflow: hidden;
@@ -195,8 +197,8 @@
 }
 
 .viewer-layout:fullscreen .reader-image {
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -378,7 +380,10 @@
   display: grid;
   width: min(100%, 640px);
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   place-items: center;
+  overflow: hidden;
 }
 
 .pdf-page-canvas {
@@ -402,8 +407,10 @@
 }
 
 .viewer-layout:fullscreen .pdf-page {
-  width: auto;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
+  max-height: 100%;
 }
 
 .viewer-layout:fullscreen .pdf-page-canvas {
@@ -413,11 +420,11 @@
 }
 
 .viewer-layout:fullscreen .page-spread-double .pdf-page:first-child {
-  justify-self: end;
+  justify-items: end;
 }
 
 .viewer-layout:fullscreen .page-spread-double .pdf-page:nth-child(2) {
-  justify-self: start;
+  justify-items: start;
 }
 
 .sample-page-cover {
