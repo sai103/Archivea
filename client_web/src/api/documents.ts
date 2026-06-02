@@ -3,8 +3,10 @@
  * バックエンドのsnake_caseレスポンスをcamelCaseへ変換した後の形。
  */
 export interface DocumentItem {
-  // バックエンドDB上のドキュメントID。
-  id: number;
+  // 旧URL互換用の数値ID。新規URL生成ではstoredNameを使う。
+  id?: number;
+  // バックエンドDB上のファイル識別子（UUID hex）。URLパラメータにも使う。
+  storedName: string;
   // 一覧と閲覧画面に表示するタイトル。
   title: string;
   // ドキュメント形式を判定するMIME type。
@@ -53,9 +55,7 @@ export interface EpubChapterItem {
  * ジャンル選択UIで扱うジャンル情報。
  */
 export interface GenreItem {
-  // バックエンドDB上のジャンルID。
-  id: number;
-  // 一覧や検索条件に表示するジャンル名。
+  // 一覧や検索条件に表示するジャンル名。ジャンルの自然キー。
   name: string;
 }
 
@@ -63,7 +63,8 @@ export interface GenreItem {
  * GET /documents のバックエンドレスポンス形。
  */
 interface DocumentResponse {
-  id: number;
+  id?: number;
+  stored_name: string;
   title: string;
   mime_type: string;
   created_at: string;
@@ -72,7 +73,7 @@ interface DocumentResponse {
 }
 
 /**
- * GET /documents/{id}/pages のバックエンドレスポンス形。
+ * GET /documents/{stored_name}/pages のバックエンドレスポンス形。
  */
 interface ZipPageResponse {
   index: number;
@@ -81,7 +82,7 @@ interface ZipPageResponse {
 }
 
 /**
- * GET /documents/{id}/epub/chapters のバックエンドレスポンス形。
+ * GET /documents/{stored_name}/epub/chapters のバックエンドレスポンス形。
  */
 interface EpubChapterResponse {
   index: number;
@@ -93,7 +94,6 @@ interface EpubChapterResponse {
  * GET /genres のバックエンドレスポンス形。
  */
 interface GenreResponse {
-  id: number;
   name: string;
 }
 
@@ -103,7 +103,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api';
 // API接続に失敗した場合でも画面確認を続けるための仮ドキュメント一覧。
 const sampleDocuments: DocumentItem[] = [
   {
-    id: 9001,
+    storedName: 'sample-pdf-001',
     title: '設計資料サンプル PDF',
     mimeType: 'application/pdf',
     createdAt: '2026-05-20T10:30:00.000Z',
@@ -115,7 +115,7 @@ const sampleDocuments: DocumentItem[] = [
     isSample: true,
   },
   {
-    id: 9002,
+    storedName: 'sample-img-001',
     title: '表紙画像サンプル PNG',
     mimeType: 'image/png',
     createdAt: '2026-05-19T12:15:00.000Z',
@@ -127,7 +127,7 @@ const sampleDocuments: DocumentItem[] = [
     isSample: true,
   },
   {
-    id: 9003,
+    storedName: 'sample-zip-001',
     title: '連番ページサンプル ZIP',
     mimeType: 'application/zip',
     createdAt: '2026-05-18T18:00:00.000Z',
@@ -139,7 +139,7 @@ const sampleDocuments: DocumentItem[] = [
     isSample: true,
   },
   {
-    id: 9004,
+    storedName: 'sample-epub-001',
     title: '電子書籍サンプル EPUB',
     mimeType: 'application/epub+zip',
     createdAt: '2026-05-17T09:45:00.000Z',
@@ -156,15 +156,15 @@ const sampleDocuments: DocumentItem[] = [
 const sampleZipPages: ZipPageItem[] = Array.from({ length: 8 }, (_, index) => ({
   index,
   filename: `${String(index + 1).padStart(3, '0')}.png`,
-  contentUrl: `/sample-documents/9003/pages/${index}/content`,
+  contentUrl: `/sample-documents/sample-zip-001/pages/${index}/content`,
 }));
 
 // API接続に失敗した場合でも検索UIを確認するための仮ジャンル一覧。
 const sampleGenres: GenreItem[] = [
-  { id: 1, name: '技術資料' },
-  { id: 2, name: '画像' },
-  { id: 3, name: 'コミック' },
-  { id: 4, name: '書籍' },
+  { name: '技術資料' },
+  { name: '画像' },
+  { name: 'コミック' },
+  { name: '書籍' },
 ];
 
 /**
@@ -193,7 +193,7 @@ function readDocument(value: unknown): DocumentItem {
 
   const response = value as Partial<DocumentResponse>;
   if (
-    typeof response.id !== 'number' ||
+    typeof response.stored_name !== 'string' ||
     typeof response.title !== 'string' ||
     typeof response.mime_type !== 'string' ||
     typeof response.created_at !== 'string'
@@ -202,7 +202,8 @@ function readDocument(value: unknown): DocumentItem {
   }
 
   return {
-    id: response.id,
+    id: typeof response.id === 'number' ? response.id : undefined,
+    storedName: response.stored_name,
     title: response.title,
     mimeType: response.mime_type,
     createdAt: response.created_at,
@@ -268,21 +269,18 @@ function readGenre(value: unknown): GenreItem {
   }
 
   const response = value as Partial<GenreResponse>;
-  if (typeof response.id !== 'number' || typeof response.name !== 'string') {
+  if (typeof response.name !== 'string') {
     throw new Error('ジャンル情報の必須項目が不足しています');
   }
 
-  return {
-    id: response.id,
-    name: response.name,
-  };
+  return { name: response.name };
 }
 
 /**
  * PDF、単体画像、EPUB元ファイルなどの本文配信URLを組み立てる。
  */
-export function getContentUrl(documentId: number) {
-  return buildApiUrl(`/documents/${documentId}/content`);
+export function getContentUrl(storedName: string) {
+  return buildApiUrl(`/documents/${storedName}/content`);
 }
 
 /**
@@ -316,8 +314,8 @@ export function getSampleDocuments() {
 /**
  * 仮ZIPドキュメントのページ一覧を返す。
  */
-export function getSampleZipPages(documentId: number) {
-  if (documentId !== 9003) {
+export function getSampleZipPages(storedName: string) {
+  if (storedName !== 'sample-zip-001') {
     return [];
   }
 
@@ -392,8 +390,8 @@ export async function createGenre(name: string): Promise<GenreItem> {
 /**
  * ジャンルを削除する。ドキュメントが紐づいている場合はバックエンドが409を返す。
  */
-export async function deleteGenre(genreId: number): Promise<void> {
-  const response = await fetch(buildApiUrl(`/genres/${genreId}`), { method: 'DELETE' });
+export async function deleteGenre(genreName: string): Promise<void> {
+  const response = await fetch(buildApiUrl(`/genres/${encodeURIComponent(genreName)}`), { method: 'DELETE' });
   if (!response.ok) {
     const detail = await extractErrorDetail(response, `ジャンルの削除に失敗しました: ${response.status}`);
     throw new Error(detail);
@@ -403,8 +401,8 @@ export async function deleteGenre(genreId: number): Promise<void> {
 /**
  * ドキュメントを論理削除する。
  */
-export async function deleteDocument(documentId: number): Promise<void> {
-  const response = await fetch(buildApiUrl(`/documents/${documentId}`), { method: 'DELETE' });
+export async function deleteDocument(storedName: string): Promise<void> {
+  const response = await fetch(buildApiUrl(`/documents/${storedName}`), { method: 'DELETE' });
   if (!response.ok) {
     const detail = await extractErrorDetail(response, `本の削除に失敗しました: ${response.status}`);
     throw new Error(detail);
@@ -412,13 +410,13 @@ export async function deleteDocument(documentId: number): Promise<void> {
 }
 
 /**
- * ドキュメントのジャンルを変更する。genreId に null を指定すると未分類に戻す。
+ * ドキュメントのジャンルを変更する。genreName に null を指定すると未分類に戻す。
  */
-export async function patchDocumentGenre(documentId: number, genreId: number | null): Promise<void> {
-  const response = await fetch(buildApiUrl(`/documents/${documentId}`), {
+export async function patchDocumentGenre(storedName: string, genreName: string | null): Promise<void> {
+  const response = await fetch(buildApiUrl(`/documents/${storedName}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ genre_id: genreId }),
+    body: JSON.stringify({ genre_name: genreName }),
   });
   if (!response.ok) {
     const detail = await extractErrorDetail(response, `ジャンルの変更に失敗しました: ${response.status}`);
@@ -428,12 +426,12 @@ export async function patchDocumentGenre(documentId: number, genreId: number | n
 
 /**
  * ドキュメントをアップロードしてDBに登録する。
- * genreId を指定するとジャンルを紐づける。
+ * genreName を指定するとジャンルを紐づける。
  */
-export async function uploadDocument(title: string, file: File, genreId?: number): Promise<DocumentItem> {
+export async function uploadDocument(title: string, file: File, genreName?: string): Promise<DocumentItem> {
   let url = `${buildApiUrl('/documents')}?title=${encodeURIComponent(title)}`;
-  if (genreId !== undefined) {
-    url += `&genre_id=${genreId}`;
+  if (genreName !== undefined) {
+    url += `&genre_name=${encodeURIComponent(genreName)}`;
   }
   const body = new FormData();
   body.append('file', file);
@@ -450,12 +448,12 @@ export async function uploadDocument(title: string, file: File, genreId?: number
 
 /**
  * 複数の画像ファイルをディレクトリとしてアップロードし、1冊のページ本として登録する。
- * genreId を指定するとジャンルを紐づける。
+ * genreName を指定するとジャンルを紐づける。
  */
-export async function uploadDirectory(title: string, files: File[], genreId?: number): Promise<DocumentItem> {
+export async function uploadDirectory(title: string, files: File[], genreName?: string): Promise<DocumentItem> {
   let url = `${buildApiUrl('/documents/directory')}?title=${encodeURIComponent(title)}`;
-  if (genreId !== undefined) {
-    url += `&genre_id=${genreId}`;
+  if (genreName !== undefined) {
+    url += `&genre_name=${encodeURIComponent(genreName)}`;
   }
   const body = new FormData();
   for (const file of files) {
@@ -473,12 +471,12 @@ export async function uploadDirectory(title: string, files: File[], genreId?: nu
 /**
  * ZIP画像本または画像ディレクトリ本のページ一覧を取得する。
  */
-export async function fetchZipPages(documentId: number) {
-  if (documentId === 9003) {
-    return sampleZipPages;
+export async function fetchZipPages(storedName: string) {
+  if (isSampleDocument({ storedName, title: '', mimeType: '', createdAt: '', isSample: storedName.startsWith('sample-') })) {
+    return getSampleZipPages(storedName);
   }
 
-  const response = await fetch(buildApiUrl(`/documents/${documentId}/pages`));
+  const response = await fetch(buildApiUrl(`/documents/${storedName}/pages`));
   if (!response.ok) {
     throw new Error(`ZIPページ一覧を取得できませんでした: ${response.status}`);
   }
@@ -494,8 +492,8 @@ export async function fetchZipPages(documentId: number) {
 /**
  * EPUBドキュメントの章一覧を取得する。
  */
-export async function fetchEpubChapters(documentId: number) {
-  const response = await fetch(buildApiUrl(`/documents/${documentId}/epub/chapters`));
+export async function fetchEpubChapters(storedName: string) {
+  const response = await fetch(buildApiUrl(`/documents/${storedName}/epub/chapters`));
   if (!response.ok) {
     throw new Error(`EPUB章一覧を取得できませんでした: ${response.status}`);
   }

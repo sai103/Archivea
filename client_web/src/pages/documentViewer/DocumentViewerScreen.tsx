@@ -457,8 +457,8 @@ function PdfPageCanvas({ pdfDocument, pageIndex, isFullscreen }: PdfPageCanvasPr
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        canvas.style.width = `${displayWidth}px`;
-        canvas.style.height = `${displayHeight}px`;
+        canvas.style.width = isFullscreen ? `${displayWidth}px` : '';
+        canvas.style.height = isFullscreen ? `${displayHeight}px` : '';
 
         renderTask = page.render({
           canvas,
@@ -527,7 +527,7 @@ function PdfReader({
   // PDF本文URLをpdfjsで読み込み、ページ数を取得する。
   useEffect(() => {
     let isActive = true;
-    const loadingTask = pdfjsLib.getDocument(getContentUrl(document.id));
+    const loadingTask = pdfjsLib.getDocument(getContentUrl(document.storedName));
 
     setPdfState({ status: 'loading' });
 
@@ -553,7 +553,7 @@ function PdfReader({
       isActive = false;
       loadingTask.destroy();
     };
-  }, [document.id, onChangePage]);
+  }, [document.storedName, onChangePage]);
 
   if (pdfState.status === 'loading') {
     return <p className="viewer-status">PDFを読み込み中です</p>;
@@ -749,10 +749,8 @@ function SampleReader({
  * URLのdocumentIdから対象ドキュメントを取得し、形式別ビューアへ振り分ける。
  */
 export function DocumentViewerScreen() {
-  // URLパラメータとして渡されるドキュメントID文字列。
-  const { documentId } = useParams();
-  // 数値化したドキュメントID。API取得と対象検索に使う。
-  const parsedDocumentId = Number(documentId);
+  // URLパラメータとして渡されるstored_name文字列。
+  const { storedName } = useParams();
   // Fullscreen APIの対象にする閲覧レイアウト要素。
   const viewerLayoutRef = useRef<HTMLElement>(null);
   // 閲覧画面全体の読み込み状態。
@@ -764,11 +762,11 @@ export function DocumentViewerScreen() {
   // PDF/ZIP画像本で使う1ページ/2ページ表示モード。
   const [zipSpreadMode, setZipSpreadMode] = useState<'single' | 'double'>('single');
 
-  // documentIdが変わった時に対象ドキュメントと形式別の補助データを読み込む。
+  // storedNameが変わった時に対象ドキュメントと形式別の補助データを読み込む。
   useEffect(() => {
     let isActive = true;
 
-    if (!Number.isInteger(parsedDocumentId) || parsedDocumentId <= 0) {
+    if (!storedName) {
       setViewerState({ status: 'error', message: 'ファイルIDが正しくありません' });
       return () => {
         isActive = false;
@@ -777,18 +775,20 @@ export function DocumentViewerScreen() {
 
     fetchDocuments()
       .then(async (documents) => {
-        const document = documents.find((item) => item.id === parsedDocumentId);
+        const document = documents.find(
+          (item) => item.storedName === storedName || String(item.id) === storedName
+        );
         if (!document) {
           throw new Error('ファイルが見つかりません');
         }
 
         if (document.mimeType === 'application/zip') {
-          const pages = await fetchZipPages(document.id);
+          const pages = await fetchZipPages(document.storedName);
           return { document, pages };
         }
 
         if (document.mimeType === 'application/epub+zip') {
-          const chapters = await fetchEpubChapters(document.id);
+          const chapters = await fetchEpubChapters(document.storedName);
           return { document, chapters };
         }
 
@@ -811,7 +811,7 @@ export function DocumentViewerScreen() {
     return () => {
       isActive = false;
     };
-  }, [parsedDocumentId]);
+  }, [storedName]);
 
   // ブラウザの全画面状態変更をReact stateへ反映する。
   useEffect(() => {
@@ -904,7 +904,7 @@ export function DocumentViewerScreen() {
             <div className="single-viewer">
                 <div className="page-spread">
                   <img
-                    src={getContentUrl(viewerState.document.id)}
+                    src={getContentUrl(viewerState.document.storedName)}
                     alt={viewerState.document.title}
                     className="reader-image"
                   />

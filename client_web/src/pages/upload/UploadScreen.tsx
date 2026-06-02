@@ -31,8 +31,8 @@ export function UploadScreen() {
   const [dirFiles, setDirFiles] = useState<File[]>([]);
   // タイトル入力欄の値。ファイル選択時にファイル名から自動設定される。
   const [title, setTitle] = useState('');
-  // 選択されたジャンルID。未選択時はundefined。
-  const [genreId, setGenreId] = useState<number | undefined>(undefined);
+  // 選択されたジャンル名。未選択時はundefined。
+  const [genreName, setGenreName] = useState<string | undefined>(undefined);
   // バックエンドから取得したジャンル一覧。
   const [genres, setGenres] = useState<GenreItem[]>([]);
   // 送信状態。
@@ -92,10 +92,10 @@ export function UploadScreen() {
     try {
       if (mode === 'file') {
         if (file === null) return;
-        await uploadDocument(title.trim() || file.name, file, genreId);
+        await uploadDocument(title.trim() || file.name, file, genreName);
       } else {
         if (dirFiles.length === 0) return;
-        await uploadDirectory(title.trim() || dirFiles[0].webkitRelativePath.split('/')[0], dirFiles, genreId);
+        await uploadDirectory(title.trim() || dirFiles[0].webkitRelativePath.split('/')[0], dirFiles, genreName);
       }
       navigate('/documents');
     } catch (error) {
@@ -183,16 +183,16 @@ export function UploadScreen() {
           <label className="upload-field">
             <span>ジャンル</span>
             <select
-              value={genreId ?? ''}
+              value={genreName ?? ''}
               onChange={(event) => {
                 const val = event.target.value;
-                setGenreId(val === '' ? undefined : Number(val));
+                setGenreName(val === '' ? undefined : val);
               }}
               disabled={submitState.status === 'uploading'}
             >
               <option value="">未設定</option>
               {genres.map((genre) => (
-                <option key={genre.id} value={genre.id}>
+                <option key={genre.name} value={genre.name}>
                   {genre.name}
                 </option>
               ))}

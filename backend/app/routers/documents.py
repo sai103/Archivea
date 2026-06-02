@@ -5,6 +5,7 @@ from zipfile import ZipFile
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.constants import IMAGE_FILE_TYPES
@@ -23,10 +24,10 @@ router = APIRouter()
 
 def _get_storage_dir(session: Session) -> str:
     """settingsテーブルからファイル保存先ディレクトリを取得する。未設定時はUPLOAD_DIRを返す。"""
-    settings = session.get(AppSettings, 1)
+    settings = session.get(AppSettings, "storage_dir")
     if settings is None:
         return str(UPLOAD_DIR)
-    return settings.storage_dir
+    return settings.value
 
 
 def _stored_path(doc: Document, storage_dir: str) -> Path:
@@ -49,10 +50,39 @@ def _document_file_size(doc: Document, storage_dir: str) -> int | None:
     return None
 
 
+def _document_legacy_id(doc: Document, session: Session) -> int | None:
+    """旧URL互換用にSQLite rowidを返す。取得できない場合はNoneを返す。"""
+    row = session.exec(
+        text("SELECT rowid FROM document WHERE stored_name = :stored_name"),
+        params={"stored_name": doc.stored_name},
+    ).first()
+    if row is None:
+        return None
+
+    value = row[0]
+    return int(value) if isinstance(value, int) else None
+
+
+def _get_doc(stored_name: str, session: Session) -> Document:
+    """stored_nameでドキュメントを取得する。見つからない場合は404を返す。"""
+    doc = session.exec(select(Document).where(Document.stored_name == stored_name)).first()
+    if doc is None and stored_name.isdecimal():
+        row = session.exec(
+            text("SELECT stored_name FROM document WHERE rowid = :rowid"),
+            params={"rowid": int(stored_name)},
+        ).first()
+        if row is not None:
+            doc = session.exec(select(Document).where(Document.stored_name == row[0])).first()
+
+    if not doc or doc.is_deleted:
+        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    return doc
+
+
 @router.post("/documents", response_model=DocumentRead)
 async def upload_document(
     title: str = Query(..., description="一覧に表示するタイトル"),
-    genre_id: Optional[int] = Query(None, description="ジャンルID。省略時は未設定。"),
+    genre_name: Optional[str] = Query(None, description="ジャンル名。省略時は未設定。"),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
@@ -84,7 +114,6 @@ async def upload_document(
             extract_zip_images(zip_path=zip_path, output_dir=pages_dir)
         finally:
             zip_path.unlink(missing_ok=True)
-        stored_name = target_prefix.name
     else:
         # PDF、単体画像、EPUBは本文ファイルとしてそのまま保存する。
         target = target_prefix.with_suffix(extension)
@@ -92,18 +121,19 @@ async def upload_document(
         stored_name = target.name
 
     doc = Document(
+        stored_name=stored_name,
         title=title,
         mime_type=mime_type,
         extension=extension,
-        stored_name=stored_name,
-        genre_id=genre_id,
+        genre_name=genre_name,
     )
     session.add(doc)
     session.commit()
     session.refresh(doc)
 
     return DocumentRead(
-        id=doc.id,
+        id=_document_legacy_id(doc, session),
+        stored_name=doc.stored_name,
         title=doc.title,
         mime_type=doc.mime_type,
         created_at=doc.created_at,
@@ -114,29 +144,29 @@ async def upload_document(
 def list_documents(session: Session = Depends(get_session)):
     """登録済みドキュメント一覧をジャンル名付きで新しい順に返す。論理削除済みは除外する。"""
     storage_dir = _get_storage_dir(session)
-    rows = session.exec(
-        select(Document, Genre)
-        .outerjoin(Genre, Document.genre_id == Genre.id)
+    docs = session.exec(
+        select(Document)
         .where(Document.is_deleted == False)  # noqa: E712
         .order_by(Document.created_at.desc())
     ).all()
     return [
         DocumentRead(
-            id=doc.id,
+            id=_document_legacy_id(doc, session),
+            stored_name=doc.stored_name,
             title=doc.title,
             mime_type=doc.mime_type,
             created_at=doc.created_at,
-            genre=genre.name if genre else None,
+            genre=doc.genre_name,
             file_size=_document_file_size(doc, storage_dir),
         )
-        for doc, genre in rows
+        for doc in docs
     ]
 
 
 @router.post("/documents/directory", response_model=DocumentRead)
 async def upload_document_directory(
     title: str = Query(..., description="一覧に表示するタイトル"),
-    genre_id: Optional[int] = Query(None, description="ジャンルID。省略時は未設定。"),
+    genre_name: Optional[str] = Query(None, description="ジャンル名。省略時は未設定。"),
     files: List[UploadFile] = File(...),
     session: Session = Depends(get_session),
 ):
@@ -164,72 +194,64 @@ async def upload_document_directory(
         (pages_dir / page_name).write_bytes(content)
 
     doc = Document(
+        stored_name=stored_name,
         title=title,
         mime_type="application/zip",
         extension="",
-        stored_name=stored_name,
-        genre_id=genre_id,
+        genre_name=genre_name,
     )
     session.add(doc)
     session.commit()
     session.refresh(doc)
 
     return DocumentRead(
-        id=doc.id,
+        id=_document_legacy_id(doc, session),
+        stored_name=doc.stored_name,
         title=doc.title,
         mime_type=doc.mime_type,
         created_at=doc.created_at,
     )
 
 
-@router.patch("/documents/{document_id}", response_model=DocumentRead)
+@router.patch("/documents/{stored_name}", response_model=DocumentRead)
 def patch_document(
-    document_id: int,
+    stored_name: str,
     body: DocumentPatch,
     session: Session = Depends(get_session),
 ):
-    """ドキュメントのジャンルを変更する。genre_idにNoneを指定すると未分類に戻す。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
-    if body.genre_id is not None:
-        genre = session.get(Genre, body.genre_id)
+    """ドキュメントのジャンルを変更する。genre_nameにNoneを指定すると未分類に戻す。"""
+    doc = _get_doc(stored_name, session)
+    if body.genre_name is not None:
+        genre = session.get(Genre, body.genre_name)
         if not genre:
             raise HTTPException(status_code=404, detail="ジャンルが見つかりません")
-    doc.genre_id = body.genre_id
+    doc.genre_name = body.genre_name
     session.add(doc)
     session.commit()
     session.refresh(doc)
-    genre_name: Optional[str] = None
-    if doc.genre_id is not None:
-        linked = session.get(Genre, doc.genre_id)
-        genre_name = linked.name if linked else None
     return DocumentRead(
-        id=doc.id,
+        id=_document_legacy_id(doc, session),
+        stored_name=doc.stored_name,
         title=doc.title,
         mime_type=doc.mime_type,
         created_at=doc.created_at,
-        genre=genre_name,
+        genre=doc.genre_name,
     )
 
 
-@router.delete("/documents/{document_id}", status_code=204)
-def delete_document(document_id: int, session: Session = Depends(get_session)):
+@router.delete("/documents/{stored_name}", status_code=204)
+def delete_document(stored_name: str, session: Session = Depends(get_session)):
     """ドキュメントを論理削除する。is_deletedをTrueにセットし一覧・配信から除外する。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
     doc.is_deleted = True
     session.add(doc)
     session.commit()
 
 
-@router.get("/documents/{document_id}/content")
-def get_document_content(document_id: int, session: Session = Depends(get_session)):
+@router.get("/documents/{stored_name}/content")
+def get_document_content(stored_name: str, session: Session = Depends(get_session)):
     """PDF、単体画像、EPUBなど単一本文ファイルを配信する。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
 
     if doc.mime_type == "application/zip":
         raise HTTPException(status_code=400, detail="このドキュメントはページ形式です。/pages エンドポイントを使用してください")
@@ -246,12 +268,10 @@ def get_document_content(document_id: int, session: Session = Depends(get_sessio
     )
 
 
-@router.get("/documents/{document_id}/pages", response_model=list[ZipPageRead])
-def list_zip_pages(document_id: int, session: Session = Depends(get_session)):
+@router.get("/documents/{stored_name}/pages", response_model=list[ZipPageRead])
+def list_zip_pages(stored_name: str, session: Session = Depends(get_session)):
     """ZIP画像本または画像ディレクトリ本のページ一覧を返す。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
     if doc.mime_type != "application/zip":
         raise HTTPException(status_code=400, detail="このドキュメントはZIP形式ではありません")
 
@@ -264,18 +284,16 @@ def list_zip_pages(document_id: int, session: Session = Depends(get_session)):
         ZipPageRead(
             index=index,
             filename=path.name,
-            content_url=f"/documents/{document_id}/pages/{index}/content",
+            content_url=f"/documents/{stored_name}/pages/{index}/content",
         )
         for index, path in enumerate(pages)
     ]
 
 
-@router.get("/documents/{document_id}/pages/{page_index}/content")
-def get_zip_page_content(document_id: int, page_index: int, session: Session = Depends(get_session)):
+@router.get("/documents/{stored_name}/pages/{page_index}/content")
+def get_zip_page_content(stored_name: str, page_index: int, session: Session = Depends(get_session)):
     """ZIP画像本または画像ディレクトリ本の指定ページ画像を配信する。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
     if doc.mime_type != "application/zip":
         raise HTTPException(status_code=400, detail="このドキュメントはZIP形式ではありません")
 
@@ -297,12 +315,10 @@ def get_zip_page_content(document_id: int, page_index: int, session: Session = D
     )
 
 
-@router.get("/documents/{document_id}/epub/chapters", response_model=list[EpubChapterRead])
-def list_epub_chapters(document_id: int, session: Session = Depends(get_session)):
+@router.get("/documents/{stored_name}/epub/chapters", response_model=list[EpubChapterRead])
+def list_epub_chapters(stored_name: str, session: Session = Depends(get_session)):
     """EPUBのspine順に章一覧を返す。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
     if doc.mime_type != "application/epub+zip":
         raise HTTPException(status_code=400, detail="このドキュメントはEPUB形式ではありません")
 
@@ -315,22 +331,20 @@ def list_epub_chapters(document_id: int, session: Session = Depends(get_session)
         EpubChapterRead(
             index=index,
             title=title,
-            content_url=f"/documents/{document_id}/epub/chapters/{index}/content",
+            content_url=f"/documents/{stored_name}/epub/chapters/{index}/content",
         )
         for index, (title, _chapter_path) in enumerate(chapters)
     ]
 
 
-@router.get("/documents/{document_id}/epub/chapters/{chapter_index}/content")
+@router.get("/documents/{stored_name}/epub/chapters/{chapter_index}/content")
 def get_epub_chapter_content(
-    document_id: int,
+    stored_name: str,
     chapter_index: int,
     session: Session = Depends(get_session),
 ):
     """EPUBの指定章本文をブラウザ表示用HTMLとして配信する。"""
-    doc = session.get(Document, document_id)
-    if not doc or doc.is_deleted:
-        raise HTTPException(status_code=404, detail="ドキュメントが見つかりません")
+    doc = _get_doc(stored_name, session)
     if doc.mime_type != "application/epub+zip":
         raise HTTPException(status_code=400, detail="このドキュメントはEPUB形式ではありません")
 

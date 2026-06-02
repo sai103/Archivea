@@ -1,9 +1,14 @@
+import { AuthProvider } from './contexts/AuthContext';
 import { AppRouter } from './router/AppRouter';
 
 /**
  * Archivea Webアプリケーションの最上位コンポーネント。
- * 現時点ではルーティング定義を持つAppRouterへ処理を委譲する。
+ * AuthProvider で認証状態を全体に提供し、AppRouter でルーティングを管理する。
  */
 export function App() {
-  return <AppRouter />;
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  );
 }

@@ -1,36 +1,35 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
 import './LoginScreen.css';
 
 /**
  * ログイン画面。
- * 現行MVPでは固定ID/パスワードで画面遷移を確認する仮実装。
+ * バックエンドの /auth/login を呼び出し、成功時はメニュー画面へ遷移する。
  */
 export function LoginScreen() {
-  // ログイン成功時にメニュー画面へ遷移するためのReact Router関数。
   const navigate = useNavigate();
-  // 入力中のユーザーID。
-  const [userId, setUserId] = useState('');
-  // 入力中のパスワード。
+  const { login } = useAuth();
+
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  // ログイン失敗時に画面へ表示するエラーメッセージ。
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  /**
-   * ログインフォーム送信時の処理。
-   * フォームの標準送信を止め、仮認証に成功した場合はメニューへ遷移する。
-   */
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (userId === 'test' && password === 'test') {
-      setError('');
-      navigate('/menu');
-      return;
+    if (loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      await login(username, password);
+      navigate('/menu', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
+    } finally {
+      setLoading(false);
     }
-
-    setError('IDまたはパスワードが正しくありません');
   };
 
   return (
@@ -41,14 +40,15 @@ export function LoginScreen() {
           <h1 id="login-title">ログイン</h1>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form className="login-form" onSubmit={(e) => void handleSubmit(e)}>
           <label className="field">
-            <span>ID</span>
+            <span>ユーザー名</span>
             <input
               type="text"
-              value={userId}
-              onChange={(event) => setUserId(event.target.value)}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
+              disabled={loading}
             />
           </label>
 
@@ -59,6 +59,7 @@ export function LoginScreen() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
+              disabled={loading}
             />
           </label>
 
@@ -68,8 +69,8 @@ export function LoginScreen() {
             </p>
           )}
 
-          <button type="submit" className="primary-button">
-            ログイン
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? 'ログイン中...' : 'ログイン'}
           </button>
         </form>
       </section>

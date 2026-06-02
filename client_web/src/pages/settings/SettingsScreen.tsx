@@ -24,8 +24,8 @@ export function SettingsScreen() {
   // 追加入力欄への参照（追加後にフォーカスを戻す用）。
   const addInputRef = useRef<HTMLInputElement>(null);
 
-  // 削除対象として選択中のジャンルID。
-  const [selectedDeleteId, setSelectedDeleteId] = useState<number | ''>('');
+  // 削除対象として選択中のジャンル名。
+  const [selectedDeleteId, setSelectedDeleteId] = useState('');
   // 削除確認モーダルの表示フラグ。
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // 削除処理中フラグ。
@@ -36,10 +36,10 @@ export function SettingsScreen() {
   const [documentsLoading, setDocumentsLoading] = useState(true);
   // 本の絞り込みテキスト。
   const [docFilter, setDocFilter] = useState('');
-  // 変更対象として選択中のドキュメントID一覧（複数選択可）。
-  const [changeDocId, setChangeDocId] = useState<number[]>([]);
-  // 変更後ジャンルID（''は未分類）。
-  const [changeGenreId, setChangeGenreId] = useState<number | ''>('');
+  // 変更対象として選択中のドキュメントstored_name一覧（複数選択可）。
+  const [changeDocId, setChangeDocId] = useState<string[]>([]);
+  // 変更後ジャンル名（''は未分類）。
+  const [changeGenreId, setChangeGenreId] = useState('');
   // ジャンル変更中フラグ。
   const [changing, setChanging] = useState(false);
   // ジャンル変更操作のエラーメッセージ。
@@ -117,7 +117,7 @@ export function SettingsScreen() {
     setGenreError('');
     try {
       await deleteGenre(selectedDeleteId);
-      setGenres((prev) => prev.filter((g) => g.id !== selectedDeleteId));
+      setGenres((prev) => prev.filter((g) => g.name !== selectedDeleteId));
       setSelectedDeleteId('');
       setShowDeleteModal(false);
     } catch (error) {
@@ -139,12 +139,12 @@ export function SettingsScreen() {
     setChangeError('');
     setChangeMessage('');
     try {
-      const genreId = changeGenreId === '' ? null : changeGenreId;
-      await Promise.all(changeDocId.map((id) => patchDocumentGenre(id, genreId)));
-      const newGenreName = genres.find((g) => g.id === changeGenreId)?.name;
+      const genreName = changeGenreId === '' ? null : changeGenreId;
+      await Promise.all(changeDocId.map((id) => patchDocumentGenre(id, genreName)));
+      const newGenreName = genreName ?? undefined;
       setDocuments((prev) =>
         prev.map((d) =>
-          changeDocId.includes(d.id) ? { ...d, genre: newGenreName } : d
+          changeDocId.includes(d.storedName) ? { ...d, genre: newGenreName } : d
         )
       );
       setChangeMessage(`${changeDocId.length}件を変更しました`);
@@ -168,7 +168,7 @@ export function SettingsScreen() {
     setChangeMessage('');
     try {
       await Promise.all(changeDocId.map((id) => deleteDocument(id)));
-      setDocuments((prev) => prev.filter((d) => !changeDocId.includes(d.id)));
+      setDocuments((prev) => prev.filter((d) => !changeDocId.includes(d.storedName)));
       const count = changeDocId.length;
       setChangeDocId([]);
       setShowDeleteDocModal(false);
@@ -197,7 +197,7 @@ export function SettingsScreen() {
     }
   };
 
-  const selectedGenreName = genres.find((g) => g.id === selectedDeleteId)?.name ?? '';
+  const selectedGenreName = selectedDeleteId;
 
   const filteredDocuments = docFilter.trim() === ''
     ? documents
@@ -235,12 +235,12 @@ export function SettingsScreen() {
                   id="genre-delete-select"
                   className="genre-select"
                   value={selectedDeleteId}
-                  onChange={(e) => setSelectedDeleteId(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => setSelectedDeleteId(e.target.value)}
                   disabled={deleting || genres.length === 0}
                 >
                   <option value="">-- ジャンルを選択 --</option>
                   {genres.map((genre) => (
-                    <option key={genre.id} value={genre.id}>{genre.name}</option>
+                    <option key={genre.name} value={genre.name}>{genre.name}</option>
                   ))}
                 </select>
                 <button
@@ -312,7 +312,7 @@ export function SettingsScreen() {
                     if (changeDocId.length > 0) {
                       const lower = val.trim().toLowerCase();
                       const still = changeDocId.filter((id) => {
-                        const doc = documents.find((d) => d.id === id);
+                        const doc = documents.find((d) => d.storedName === id);
                         return doc && (lower === '' || doc.title.toLowerCase().includes(lower));
                       });
                       if (still.length !== changeDocId.length) {
@@ -329,23 +329,22 @@ export function SettingsScreen() {
                   id="change-doc-select"
                   className="genre-select"
                   multiple
-                  value={changeDocId.map(String)}
+                  value={changeDocId}
                   onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                    const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
                     setChangeDocId(selected);
                     setChangeMessage('');
                     // 1件のみ選択の場合は現在のジャンルを初期値にセットする。
                     if (selected.length === 1) {
-                      const doc = documents.find((d) => d.id === selected[0]);
-                      const currentGenre = genres.find((g) => g.name === doc?.genre);
-                      setChangeGenreId(currentGenre ? currentGenre.id : '');
+                      const doc = documents.find((d) => d.storedName === selected[0]);
+                      setChangeGenreId(doc?.genre ?? '');
                     }
                   }}
                   disabled={changing || filteredDocuments.length === 0}
                   size={Math.min(filteredDocuments.length, 6) || 3}
                 >
                   {filteredDocuments.map((doc) => (
-                    <option key={doc.id} value={doc.id}>{doc.title}</option>
+                    <option key={doc.storedName} value={doc.storedName}>{doc.title}</option>
                   ))}
                 </select>
                 <p className="doc-select-hint">Ctrl（Mac: ⌘）を押しながらクリックで複数選択</p>
@@ -360,14 +359,14 @@ export function SettingsScreen() {
               className="genre-select"
               value={changeGenreId}
               onChange={(e) => {
-                setChangeGenreId(e.target.value === '' ? '' : Number(e.target.value));
+                setChangeGenreId(e.target.value);
                 setChangeMessage('');
               }}
               disabled={changing || changeDocId.length === 0}
             >
               <option value="">なし</option>
               {genres.map((genre) => (
-                <option key={genre.id} value={genre.id}>{genre.name}</option>
+                <option key={genre.name} value={genre.name}>{genre.name}</option>
               ))}
             </select>
           </div>
@@ -444,7 +443,7 @@ export function SettingsScreen() {
             </p>
             <ul className="modal-doc-list">
               {changeDocId.map((id) => {
-                const doc = documents.find((d) => d.id === id);
+                const doc = documents.find((d) => d.storedName === id);
                 return doc ? <li key={id}>{doc.title}</li> : null;
               })}
             </ul>

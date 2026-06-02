@@ -1,4 +1,5 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
 import './MenuScreen.css';
 
 /**
@@ -6,12 +7,26 @@ import './MenuScreen.css';
  * 閲覧画面と設定画面への導線を提供する。
  */
 export function MenuScreen() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  // バックエンドのセッションとCookieを削除してからログイン画面へ遷移する。
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <main className="menu-shell">
       <section className="menu-layout" aria-labelledby="menu-title">
         <header className="menu-header">
-          <p className="app-name">Archivea</p>
-          <h1 id="menu-title">メニュー</h1>
+          <div>
+            <p className="app-name">Archivea</p>
+            <h1 id="menu-title">メニュー</h1>
+          </div>
+          <button type="button" className="menu-logout-button" onClick={() => void handleLogout()}>
+            ログアウト
+          </button>
         </header>
 
         <nav className="menu-nav" aria-label="主要機能">

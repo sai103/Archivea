@@ -12,7 +12,7 @@ router = APIRouter()
 def list_genres(session: Session = Depends(get_session)):
     """ジャンル一覧を名前順に返す。"""
     genres = session.exec(select(Genre).order_by(Genre.name)).all()
-    return [GenreRead(id=genre.id, name=genre.name) for genre in genres]
+    return [GenreRead(name=genre.name) for genre in genres]
 
 
 @router.post("/genres", response_model=GenreRead, status_code=201)
@@ -25,16 +25,16 @@ def create_genre(body: GenreCreate, session: Session = Depends(get_session)):
     session.add(genre)
     session.commit()
     session.refresh(genre)
-    return GenreRead(id=genre.id, name=genre.name)
+    return GenreRead(name=genre.name)
 
 
-@router.delete("/genres/{genre_id}", status_code=204)
-def delete_genre(genre_id: int, session: Session = Depends(get_session)):
+@router.delete("/genres/{genre_name}", status_code=204)
+def delete_genre(genre_name: str, session: Session = Depends(get_session)):
     """ジャンルを削除する。ドキュメントが紐づいている場合は409を返す。"""
-    genre = session.get(Genre, genre_id)
+    genre = session.get(Genre, genre_name)
     if not genre:
         raise HTTPException(status_code=404, detail="ジャンルが見つかりません")
-    in_use = session.exec(select(Document).where(Document.genre_id == genre_id)).first()
+    in_use = session.exec(select(Document).where(Document.genre_name == genre_name)).first()
     if in_use:
         raise HTTPException(status_code=409, detail="このジャンルは使用中のため削除できません")
     session.delete(genre)

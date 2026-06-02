@@ -7,7 +7,9 @@ from sqlmodel import SQLModel
 class DocumentRead(SQLModel):
     """GET /documentsやアップロード結果として返すドキュメントレスポンス。"""
 
-    id: int
+    # 旧URL互換用のSQLite rowid。新規コードではstored_nameを使う。
+    id: Optional[int] = None
+    stored_name: str
     title: str
     mime_type: str
     created_at: datetime
@@ -20,7 +22,6 @@ class DocumentRead(SQLModel):
 class GenreRead(SQLModel):
     """GET /genresで返すジャンルレスポンス。"""
 
-    id: int
     name: str
 
 
@@ -31,10 +32,10 @@ class GenreCreate(SQLModel):
 
 
 class DocumentPatch(SQLModel):
-    """PATCH /documents/{id}で受け取るドキュメント更新リクエスト。"""
+    """PATCH /documents/{stored_name}で受け取るドキュメント更新リクエスト。"""
 
     # Noneを指定するとジャンルを未分類に戻す。
-    genre_id: Optional[int] = None
+    genre_name: Optional[str] = None
 
 
 class SettingsRead(SQLModel):

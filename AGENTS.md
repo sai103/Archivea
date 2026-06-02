@@ -46,6 +46,7 @@ Archivea は、PDF、JPG、PNG、WebP、EPUB、画像ページを含むZIPアー
 
 - Chrome Webフロントエンドを変更する場合は、実装前に `skills/chrome-web-frontend/SKILL.md` と `docs/typescript-react-coding-rules.md` を読みます。画面、ルーティング、API連携、PDF/画像/ZIPビューア、React/TypeScriptコード、Vite設定、Web向け依存関係を扱う変更が対象です。
 - FastAPIバックエンドを変更する場合は、実装前に `skills/backend-fastapi/SKILL.md` を読みます。API、DBモデル、アップロード、ファイル配信、設定値、テスト、バックエンド依存関係を扱う変更が対象です。
+- DBテーブルを新規作成または変更する場合は、実装前に `skills/db-table-design/SKILL.md` を読みます。主キー選定、インデックス付与、SQLModelでの実装規約を扱う変更が対象です。
 - Flutterモバイルアプリを変更する場合は、実装前に `skills/flutter-mobile/SKILL.md` を読みます。Flutter画面、モバイル側API連携、将来のiOS/Android向け構成を扱う変更が対象です。
 - プロジェクト範囲、対象プラットフォーム、ディレクトリ構成に関わる変更では `docs/overview.md` を確認します。
 - Docker、ローカル起動、サンプルデータ、生成データ、アップロードファイル、DB、ログ、再現可能な開発環境に関わる変更では `docs/harness-design.md` を確認します。

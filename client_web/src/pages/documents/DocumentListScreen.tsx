@@ -95,7 +95,7 @@ export function DocumentListScreen() {
               <option value="">すべて</option>
               {loadState.status === 'success' &&
                 loadState.genres.map((genre) => (
-                  <option key={genre.id} value={genre.name}>
+                  <option key={genre.name} value={genre.name}>
                     {genre.name}
                   </option>
                 ))}
@@ -129,8 +129,8 @@ export function DocumentListScreen() {
           <nav className="documents-list" aria-label="閲覧ファイル">
             {filteredDocuments.map((document) => (
               <Link
-                key={document.id}
-                to={`/documents/${document.id}`}
+                key={document.storedName}
+                to={`/documents/${document.storedName}`}
                 className="document-link"
               >
                 <span className="document-title">{document.title}</span>
